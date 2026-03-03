@@ -1,0 +1,105 @@
+[gd_scene format=3 uid="uid://d4l2gova8uur1"]
+
+[ext_resource type="Script" uid="uid://paphv2fxk877" path="res://Script/player.gd" id="1_6l3be"]
+[ext_resource type="Texture2D" uid="uid://bmox3bml8wc7v" path="res://Assets/Char 1/with hands/idle_0.png" id="2_c7h21"]
+[ext_resource type="PackedScene" uid="uid://tbbd5jqlb405" path="res://Scene/Bullet.tscn" id="2_eol6p"]
+[ext_resource type="Texture2D" uid="uid://b30ijfxv8tqc1" path="res://Assets/Char 1/with hands/walk_0.png" id="2_g1hv4"]
+[ext_resource type="Texture2D" uid="uid://dmk2vs6k0ymu0" path="res://Assets/Char 1/with hands/idle_1.png" id="3_eol6p"]
+[ext_resource type="Texture2D" uid="uid://d4fvd26pr7v3o" path="res://Assets/Char 1/with hands/walk_1.png" id="3_liw1m"]
+[ext_resource type="Texture2D" uid="uid://c142l0b8vvdtr" path="res://Assets/Char 1/with hands/walk_2.png" id="4_jriwm"]
+[ext_resource type="Texture2D" uid="uid://dl2aqe8xlvt34" path="res://Assets/Char 1/with hands/idle_2.png" id="4_q3xbo"]
+[ext_resource type="Texture2D" uid="uid://bdbpevlynxukf" path="res://Assets/Char 1/with hands/walk_3.png" id="5_7dww1"]
+[ext_resource type="Texture2D" uid="uid://damxuoqvhkn2w" path="res://Assets/Char 1/with hands/idle_3.png" id="5_parcb"]
+[ext_resource type="Texture2D" uid="uid://dwr7nrbsdspbx" path="res://Assets/Char 1/with hands/idle_4.png" id="6_4b564"]
+[ext_resource type="Texture2D" uid="uid://b5xhc7r0slyi0" path="res://Assets/Char 1/with hands/walk_4.png" id="6_inyuv"]
+[ext_resource type="Texture2D" uid="uid://yxehgfqsqqoi" path="res://Assets/Char 1/with hands/walk_5.png" id="7_6q824"]
+[ext_resource type="Texture2D" uid="uid://bnucvj3m00oqj" path="res://Assets/Char 1/with hands/idle_5.png" id="7_g743h"]
+[ext_resource type="Texture2D" uid="uid://brpeh5fs7rkdn" path="res://Assets/Char 1/with hands/walk_6.png" id="8_c7h21"]
+[ext_resource type="Texture2D" uid="uid://bhbln4a8jak6x" path="res://Assets/Char 1/with hands/walk_7.png" id="9_eol6p"]
+[ext_resource type="Texture2D" uid="uid://qjqg1akms7fi" path="res://Assets/Weapons/weaponR2.png" id="17_q3xbo"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_g1hv4"]
+radius = 8.0
+height = 25.0
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_q3xbo"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_c7h21")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_eol6p")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_q3xbo")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_parcb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_4b564")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_g743h")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_g1hv4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_liw1m")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_jriwm")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_7dww1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_inyuv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_6q824")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_c7h21")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_eol6p")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 5.0
+}]
+
+[node name="Player" type="CharacterBody2D" unique_id=2068984448 groups=["player"]]
+script = ExtResource("1_6l3be")
+bullet_scene = ExtResource("2_eol6p")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=73879014]
+position = Vector2(24, 1)
+shape = SubResource("CapsuleShape2D_g1hv4")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=281005316]
+position = Vector2(23.999998, -9.999999)
+scale = Vector2(0.03, 0.03)
+sprite_frames = SubResource("SpriteFrames_q3xbo")
+animation = &"walk"
+frame_progress = 0.7994707
+
+[node name="MuzzlePivot" type="Marker2D" parent="." unique_id=1978569885]
+position = Vector2(28, 7)
+
+[node name="Sprite2D" type="Sprite2D" parent="MuzzlePivot" unique_id=856496503]
+position = Vector2(-14, -24)
+scale = Vector2(0.015, 0.015)
+texture = ExtResource("17_q3xbo")
+centered = false
+
+[node name="FirePoint" type="Marker2D" parent="MuzzlePivot" unique_id=10935283]
+position = Vector2(9, -2)

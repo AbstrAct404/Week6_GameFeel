@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://blymur0jwt46f"]
+
+[ext_resource type="PackedScene" uid="uid://d4l2gova8uur1" path="res://Scene/Player.tscn" id="1_g6ejq"]
+[ext_resource type="PackedScene" uid="uid://bvkq7soo4idjf" path="res://Scene/Enemy.tscn" id="2_djkur"]
+[ext_resource type="PackedScene" uid="uid://tbbd5jqlb405" path="res://Scene/Bullet.tscn" id="2_h175a"]
+
+[node name="Main" type="Node2D" unique_id=1372691447]
+
+[node name="Floor" type="ColorRect" parent="." unique_id=1054435431]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.9384497, 0.9384497, 0.9384497, 1)
+
+[node name="World" type="Node2D" parent="." unique_id=666175470]
+
+[node name="Player" parent="World" unique_id=2068984448 instance=ExtResource("1_g6ejq")]
+bullet_scene = ExtResource("2_h175a")
+
+[node name="Camera2D" type="Camera2D" parent="World/Player" unique_id=1374069209]
+
+[node name="Bullets" type="Node2D" parent="World" unique_id=1802642986]
+
+[node name="Enemies" type="Node2D" parent="World" unique_id=2016524678]
+
+[node name="Enemy" parent="World/Enemies" unique_id=1353919629 instance=ExtResource("2_djkur")]
