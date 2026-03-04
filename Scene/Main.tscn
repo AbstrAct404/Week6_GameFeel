@@ -3,7 +3,10 @@
 [ext_resource type="PackedScene" uid="uid://d4l2gova8uur1" path="res://Scene/Player.tscn" id="1_g6ejq"]
 [ext_resource type="Script" uid="uid://dedmujgpg2sk0" path="res://Script/main.gd" id="1_h175a"]
 [ext_resource type="PackedScene" uid="uid://bvkq7soo4idjf" path="res://Scene/Enemy.tscn" id="2_djkur"]
+[ext_resource type="PackedScene" uid="uid://do533el5c6ewt" path="res://Scene/Enemy2.tscn" id="3_enemy2"]
+[ext_resource type="PackedScene" uid="uid://do543el5c6ewt" path="res://Scene/Enemy3.tscn" id="4_enemy3"]
 [ext_resource type="Texture2D" uid="uid://b8wqqkbxjfl71" path="res://Assets/Dungeon_Tileset.png" id="4_h175a"]
+[ext_resource type="PackedScene" uid="uid://do553el5c6ewt" path="res://Scene/Enemy4.tscn" id="5_enemy4"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_togfq"]
 texture = ExtResource("4_h175a")
@@ -240,6 +243,7 @@ sources/0 = SubResource("TileSetAtlasSource_h175a")
 [node name="Main" type="Node2D" unique_id=1372691447]
 script = ExtResource("1_h175a")
 enemy_scene = ExtResource("2_djkur")
+enemy_scenes = Array[PackedScene]([ExtResource("2_djkur"), ExtResource("3_enemy2"), ExtResource("4_enemy3"), ExtResource("5_enemy4")])
 
 [node name="World" type="Node2D" parent="." unique_id=666175470]
 
@@ -278,10 +282,3 @@ position = Vector2(-264, 138)
 
 [node name="CornerBR" type="Marker2D" parent="World/SpawnPoints" unique_id=610172506]
 position = Vector2(267, 139)
-
-[node name="UI" type="CanvasLayer" parent="." unique_id=1664078392]
-
-[node name="HpBar" type="ProgressBar" parent="UI" unique_id=393432297]
-offset_right = 300.0
-offset_bottom = 24.0
-value = 100.0

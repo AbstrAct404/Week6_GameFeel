@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://c1xtg0srm6rlj"]
+
+[ext_resource type="Texture2D" uid="uid://ccudqcc10x6su" path="res://Assets/Weapons/Pistol.png" id="1_tex"]
+
+[node name="Weapon" type="Node2D" unique_id=1764614683]
+z_index = 5
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=1708109947]
+position = Vector2(-4, 0)
+scale = Vector2(0.66, 0.5)
+texture = ExtResource("1_tex")
+centered = false
+
+[node name="FirePoint" type="Marker2D" parent="." unique_id=1935271283]
+position = Vector2(4, 2)

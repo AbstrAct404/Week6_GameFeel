@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://tbbd5jqlb405"]
 
 [ext_resource type="Script" uid="uid://y6ht02msko34" path="res://Script/bullet.gd" id="1_hofi5"]
-[ext_resource type="Texture2D" uid="uid://byg7wb107vx45" path="res://Assets/Extras/bullet.png" id="2_ei6by"]
+[ext_resource type="Texture2D" uid="uid://dvlyxhaee43iv" path="res://Assets/Weapons/Extras/bullet.png" id="2_ei6by"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hofi5"]
 radius = 5.0
@@ -13,5 +13,4 @@ script = ExtResource("1_hofi5")
 shape = SubResource("CircleShape2D_hofi5")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=34176758]
-scale = Vector2(0.01, 0.01)
 texture = ExtResource("2_ei6by")

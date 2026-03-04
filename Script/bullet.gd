@@ -2,6 +2,7 @@ extends Area2D
 
 @export var speed: float = 350.0
 @export var life_time: float = 1.2
+@export var damage: int = 1
 
 var direction: Vector2 = Vector2.RIGHT
 var _life_left: float
@@ -23,7 +24,10 @@ func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("player"):
 		return
 
-	# Only kill enemies
-	if body.has_method("die"):
+	# Damage enemies (prefer take_damage, fallback to die)
+	if body.has_method("take_damage"):
+		body.call("take_damage", damage)
+		queue_free()
+	elif body.has_method("die"):
 		body.call("die")
 		queue_free()
