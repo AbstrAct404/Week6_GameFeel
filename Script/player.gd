@@ -16,9 +16,9 @@ var hp: int
 @export var bullet_spawn_offset: float = 12.0
 
 # Per-weapon cooldowns (seconds)
-@export var pistol_cooldown: float = 0.45
-@export var rifle_cooldown: float = 0.26
-@export var shotgun_cooldown: float = 0.68
+@export var pistol_cooldown: float = 0.5
+@export var rifle_cooldown: float = 0.34
+@export var shotgun_cooldown: float = 0.48
 @export var sniper_cooldown: float = 1.10
 
 # NEW: cooldown multipliers (extend shotgun/sniper)
@@ -82,9 +82,9 @@ var _bullet_textures := {
 
 # Weapon damages (per bullet)
 var _weapon_damage := {
-	WeaponType.PISTOL: 11,
-	WeaponType.RIFLE: 7,
-	WeaponType.SHOTGUN: 8,
+	WeaponType.PISTOL: 8,
+	WeaponType.RIFLE: 5,
+	WeaponType.SHOTGUN: 9,
 	WeaponType.SNIPER: 50,
 }
 
@@ -98,8 +98,8 @@ var _weapon_fire_sfx := {
 
 var _hit_sfx: AudioStream = preload("res://Assets/Sound effects/PlayerGetHit.mp3")
 
-# Invincibility: 0.5s after taking damage, no damage and no collision with enemies (can pass through)
-const INVINCIBLE_DURATION := 0.5
+# Invincibility: 0.2s after taking damage, no damage and no collision with enemies (can pass through)
+const INVINCIBLE_DURATION := 0.2
 var _invincible_timer: float = 0.0
 var _collision_mask_walls_only: int = 1
 var _collision_mask_normal: int = 1
@@ -447,7 +447,7 @@ func _spawn_bullet(spawn_pos: Vector2, dir: Vector2) -> void:
 		b.max_wall_pierce = 1  # can pierce 1 wall
 		b.speed *= 2.0  # sniper bullet flight speed doubled
 	elif _weapon == WeaponType.RIFLE:
-		b.max_pierce = 2  # pierce 1 enemy (hit 2 total), 50% after first
+		b.max_pierce = 3  # pierce 2: hit 3 enemies, 100% / 80% / 50%
 		b.max_wall_pierce = 0
 	elif _weapon == WeaponType.SHOTGUN:
 		b.max_pierce = 1  # no pierce: hit one enemy only

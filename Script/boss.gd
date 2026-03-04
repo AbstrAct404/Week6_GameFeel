@@ -1,19 +1,24 @@
 extends CharacterBody2D
 
 @export var max_hp: int = 1200
-@export var contact_damage: int = 10  # damage per second while player in range
+@export var contact_damage: int = 25  # damage per 20 frames while player in range
 
 @onready var hitbox: Area2D = $Hitbox
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
 
 var _player: Node2D
 var hp: int
-# Speed = player speed + 10, then multiplied by (1 - slow). Slow can be applied by debuffs.
+# Speed = player speed - 10 normally; when HP <= 50%, player default speed. Then multiplied by (1 - slow).
 var _slow_factor: float = 0.0
+var _slow_timer: float = 0.0
 
 var _hitstop_t: float = 0.0
 var _saved_speed_scale: float = 1.0
-var _contact_dmg_timer: float = 0.0  # deal contact_damage per second while overlapping
+var _contact_dmg_frames: int = 0  # deal contact_damage per 20 frames while overlapping
+
+# Teleport: when a single hit >= 10% max_hp, teleport ahead of player in their movement direction
+const TELEPORT_HP_FRACTION: float = 0.10
+const TELEPORT_DISTANCE: float = 140.0
 
 signal died
 
@@ -62,13 +67,22 @@ func _physics_process(delta: float) -> void:
 
 	var base_speed: float = 190.0
 	if _player != null and "speed" in _player:
-		base_speed = float(_player.get("speed")) - 40.0
+		var player_speed: float = float(_player.get("speed"))
+		if hp <= max_hp / 2:
+			base_speed = player_speed  # phase 2: full player speed
+		else:
+			base_speed = player_speed - 10.0
+	if _slow_timer > 0.0:
+		_slow_timer -= delta
+		if _slow_timer <= 0.0:
+			_slow_factor = 0.0
 	var effective_speed := base_speed * (1.0 - _slow_factor)
 	var dir := (_player.global_position - global_position).normalized()
 	velocity = dir * effective_speed
 	move_and_slide()
 
-	# Damage per second while player in hitbox range (skip if player invincible)
+	# Damage per 20 frames while player in hitbox range (skip if player invincible)
+	const CONTACT_DAMAGE_INTERVAL_FRAMES := 20
 	var overlapping := hitbox.get_overlapping_bodies()
 	var player_in_range := false
 	for body in overlapping:
@@ -76,25 +90,34 @@ func _physics_process(delta: float) -> void:
 			if body.has_method("is_invincible") and body.call("is_invincible"):
 				break
 			player_in_range = true
-			_contact_dmg_timer += delta
-			while _contact_dmg_timer >= 1.0:
-				_contact_dmg_timer -= 1.0
+			_contact_dmg_frames += 1
+			if _contact_dmg_frames >= CONTACT_DAMAGE_INTERVAL_FRAMES:
+				_contact_dmg_frames = 0
 				if body.has_method("take_damage"):
 					body.call("take_damage", contact_damage)
 				else:
 					get_tree().reload_current_scene()
 			break
 	if not player_in_range:
-		_contact_dmg_timer = 0.0
+		_contact_dmg_frames = 0
 
 func get_hp() -> int:
 	return hp
 
+func apply_slow(factor: float, duration: float) -> void:
+	_slow_factor = clampf(factor, 0.0, 1.0)
+	_slow_timer = duration
+
 func take_damage(amount: int = 1, is_crit: bool = false, weapon_type: int = -1) -> void:
-	hp -= max(1, amount)
+	var actual = max(1, amount)
+	hp -= actual
 
 	_start_hitstop(is_crit, weapon_type)
 	_hit_flash()
+
+	# Teleport when single hit >= 10% max_hp: appear ahead of player in their movement direction
+	if actual >= max_hp * TELEPORT_HP_FRACTION:
+		_teleport_ahead_of_player()
 
 	# Damage popup: all hits when effect 0 on; white = non-crit, red = crit
 	var main := get_tree().current_scene
@@ -103,6 +126,22 @@ func take_damage(amount: int = 1, is_crit: bool = false, weapon_type: int = -1) 
 
 	if hp <= 0:
 		die()
+
+func _teleport_ahead_of_player() -> void:
+	if _player == null:
+		_player = get_tree().get_first_node_in_group("player") as Node2D
+	if _player == null:
+		return
+	var dir: Vector2
+	if "velocity" in _player:
+		var pv: Vector2 = _player.get("velocity")
+		if pv.length_squared() > 100.0:
+			dir = pv.normalized()
+		else:
+			dir = (_player.global_position - global_position).normalized()
+	else:
+		dir = (_player.global_position - global_position).normalized()
+	global_position = _player.global_position + dir * TELEPORT_DISTANCE
 
 func _start_hitstop(is_crit: bool, weapon_type: int) -> void:
 	_saved_speed_scale = 1.0

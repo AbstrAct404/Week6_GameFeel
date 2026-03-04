@@ -17,10 +17,10 @@ const WAVE_DURATION := 30.0
 # Total spawns per wave (1..5): 30, 40, 50, 60, 50
 const WAVE_TOTAL := {
 	1: 30,
-	2: 40,
-	3: 50,
-	4: 60,
-	5: 50,
+	2: 50,
+	3: 60,
+	4: 70,
+	5: 45,
 }
 
 # Ratios per wave: [e1,e2,e3,e4] as weights
@@ -34,17 +34,17 @@ const WAVE_RATIO := {
 
 # Enemy multipliers based on Enemy1 baseline
 const ENEMY_MULT := {
-	1: {"hp": 1.0, "speed": 1.0, "dmg": 1.0},
-	2: {"hp": 1.5, "speed": 0.8, "dmg": 1.4},
-	3: {"hp": 0.2, "speed": 2.4, "dmg": 1.1},
+	1: {"hp": 1.0, "speed": 1.0, "dmg": 1.2},
+	2: {"hp": 1.5, "speed": 1.0, "dmg": 1.4},
+	3: {"hp": 0.2, "speed": 2.0, "dmg": 1.1},
 	4: {"hp": 1.5, "speed": 1.5, "dmg": 1.5},
 }
 
-# Boss wave = 5; wave 5: spawn all in 10s, at 10s screen red + BGM, at 25s boss + flash
+# Boss wave = 5; wave 5: spawn all in 25s, at 10s screen red + BGM, at 30s boss + flash
 const BOSS_WAVE := 5
 const WAVE5_SPAWN_WINDOW := 25.0   # spawn all 50 enemies within first 25s
 const WAVE5_RED_START := 10.0      # at 10s start screen red + boss BGM
-const BOSS_SPAWN_DELAY_IN_WAVE := 25.0  # at 25s spawn boss + SFX + flash (delay +5s)
+const BOSS_SPAWN_DELAY_IN_WAVE := 30.0  # at 30s spawn boss + SFX + flash
 # --------------------------------------------
 
 var rng := RandomNumberGenerator.new()
@@ -241,7 +241,7 @@ func _start_wave(w: int) -> void:
 		_screen_red.visible = false
 		_screen_red.modulate.a = 0.0
 
-	# Wave 5: BGM from start; spawn all within 25s; at 10s screen red; at 25s boss + SFX + flash
+	# Wave 5: BGM from start; spawn all within 25s; at 10s screen red; at 30s boss + SFX + flash
 	if _wave == BOSS_WAVE:
 		_switch_to_boss_bgm()  # BGM immediately when wave 5 starts
 		get_tree().create_timer(WAVE5_RED_START).timeout.connect(_on_wave5_red_start)

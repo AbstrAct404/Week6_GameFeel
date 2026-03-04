@@ -14,7 +14,11 @@ var max_pierce: int = 0
 var max_wall_pierce: int = 0  # sniper 1, others 0
 var _pierce_hit_ids: Array[int] = []
 var _wall_pierce_count: int = 0
-var _damage_halved: bool = false  # rifle/shotgun: true after first enemy hit
+var _damage_halved: bool = false  # shotgun: true after first enemy hit
+
+# Shotgun slow: apply to enemies/boss on hit
+const SHOTGUN_SLOW_FACTOR: float = 0.35
+const SHOTGUN_SLOW_DURATION: float = 1.2
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
@@ -32,13 +36,15 @@ func _physics_process(delta: float) -> void:
 	if _life_left <= 0.0:
 		queue_free()
 
-func _apply_damage_to(target: Node) -> void:
+func _apply_damage_to(target: Node, damage_mult: float = 1.0) -> void:
 	if target == null:
 		return
 
-	var final_damage := damage
+	var final_damage := int(float(damage) * damage_mult)
+	if final_damage < 1:
+		final_damage = 1
 	if is_crit:
-		final_damage = damage * 2  # crit = 2x damage for all weapons
+		final_damage = final_damage * 2  # crit = 2x damage for all weapons
 	if target.has_method("take_damage"):
 		target.call("take_damage", final_damage, is_crit, weapon_type)
 	elif target.has_method("die"):
@@ -64,9 +70,19 @@ func _consume_hit(collider: Node) -> void:
 		if id in _pierce_hit_ids:
 			return
 		_pierce_hit_ids.append(id)
-		_apply_damage_to(target)
-		# Rifle/Shotgun: after first enemy, damage 50%
-		if (weapon_type == 1 or weapon_type == 2) and not _damage_halved:
+		# Rifle: first hit 100%, first pierce 80%, second pierce 50%
+		var damage_mult := 1.0
+		if weapon_type == 1:  # RIFLE
+			match _pierce_hit_ids.size():
+				0: damage_mult = 1.0
+				1: damage_mult = 0.8
+				2: damage_mult = 0.5
+		_apply_damage_to(target, damage_mult)
+		# Shotgun: apply slow to enemy/boss
+		if weapon_type == 2 and target.has_method("apply_slow"):
+			target.call("apply_slow", SHOTGUN_SLOW_FACTOR, SHOTGUN_SLOW_DURATION)
+		# Shotgun: 50% after first enemy (rifle uses per-hit mult above)
+		if weapon_type == 2 and not _damage_halved:
 			_damage_halved = true
 			damage = max(1, int(damage * 0.5))
 		if _pierce_hit_ids.size() >= max_pierce:

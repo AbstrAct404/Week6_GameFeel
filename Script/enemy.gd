@@ -2,7 +2,7 @@ extends CharacterBody2D
 
 @export var speed_chase := 80.0
 @export var max_hp: int = 20
-@export var contact_damage: int = 3  # damage per second while player in range
+@export var contact_damage: int = 3  # damage per 20 frames while player in range
 
 # Pathfinding: use waypoints from Main so we go around walls, not shortest line
 @export var repath_interval: float = 0.25
@@ -24,7 +24,9 @@ const STUCK_TIME_THRESHOLD: float = 0.4
 # hit stop state
 var _hitstop_t: float = 0.0
 var _saved_speed_scale: float = 1.0
-var _contact_dmg_timer: float = 0.0  # deal contact_damage per second while overlapping
+var _contact_dmg_frames: int = 0  # deal contact_damage per 20 frames while overlapping
+var _slow_factor: float = 0.0
+var _slow_timer: float = 0.0
 
 signal died
 
@@ -68,7 +70,12 @@ func _physics_process(delta: float) -> void:
 	if dir.length_squared() > 0.001:
 		dir = dir.normalized()
 
-	velocity = dir * speed_chase
+	if _slow_timer > 0.0:
+		_slow_timer -= delta
+		if _slow_timer <= 0.0:
+			_slow_factor = 0.0
+	var move_speed := speed_chase * (1.0 - _slow_factor)
+	velocity = dir * move_speed
 	move_and_slide()
 
 	# Wall collision: slide along wall and force repath
@@ -77,7 +84,7 @@ func _physics_process(delta: float) -> void:
 		var n := col.get_normal()
 		var slide_dir := velocity - (velocity.dot(n) * n)
 		if slide_dir.length_squared() > 100.0:
-			velocity = slide_dir.normalized() * speed_chase
+			velocity = slide_dir.normalized() * move_speed
 		_repath_cd = 0.0
 
 	# Stuck detection
@@ -96,7 +103,8 @@ func _physics_process(delta: float) -> void:
 		_last_waypoint_dist = -1.0
 		_stuck_timer = 0.0
 
-	# Damage per second while player in hitbox range (skip if player invincible)
+	# Damage per 20 frames while player in hitbox range (skip if player invincible)
+	const CONTACT_DAMAGE_INTERVAL_FRAMES := 20
 	var overlapping := hitbox.get_overlapping_bodies()
 	var player_in_range := false
 	for body in overlapping:
@@ -104,16 +112,16 @@ func _physics_process(delta: float) -> void:
 			if body.has_method("is_invincible") and body.call("is_invincible"):
 				break
 			player_in_range = true
-			_contact_dmg_timer += delta
-			while _contact_dmg_timer >= 1.0:
-				_contact_dmg_timer -= 1.0
+			_contact_dmg_frames += 1
+			if _contact_dmg_frames >= CONTACT_DAMAGE_INTERVAL_FRAMES:
+				_contact_dmg_frames = 0
 				if body.has_method("take_damage"):
 					body.call("take_damage", contact_damage)
 				else:
 					get_tree().reload_current_scene()
 			break
 	if not player_in_range:
-		_contact_dmg_timer = 0.0
+		_contact_dmg_frames = 0
 
 	_update_anim()
 
@@ -136,6 +144,10 @@ func _update_anim() -> void:
 
 func get_hp() -> int:
 	return hp
+
+func apply_slow(factor: float, duration: float) -> void:
+	_slow_factor = clampf(factor, 0.0, 1.0)
+	_slow_timer = duration
 
 func take_damage(amount: int = 1, is_crit: bool = false, weapon_type: int = -1) -> void:
 	_last_hit_weapon_type = weapon_type
