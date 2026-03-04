@@ -8,33 +8,28 @@ extends Node2D
 @onready var music_normal: AudioStreamPlayer = $MusicNormal
 @onready var music_boss: AudioStreamPlayer = $MusicBoss
 
-# ---------------- Wave Config ----------------
+# ---------------- Wave Config (max 5 waves) ----------------
 const WAVE_DURATION := 30.0
 
-# Total spawns per wave (1..7)
+# Total spawns per wave (1..5): 30, 40, 50, 60, 50
 const WAVE_TOTAL := {
 	1: 30,
-	2: 60,
-	3: 80,
-	4: 100,
-	5: 100,
-	6: 100,
-	7: 100,
+	2: 40,
+	3: 50,
+	4: 60,
+	5: 50,
 }
 
 # Ratios per wave: [e1,e2,e3,e4] as weights
 const WAVE_RATIO := {
-	1: [100, 0,   0,  0],   # only enemy1
+	1: [100, 0,   0,  0],
 	2: [80,  20,  0,  0],
 	3: [40,  40,  20, 0],
 	4: [10,  40,  40, 10],
-	5: [10,  30,  40, 20],
-	6: [0,   30,  30, 40],
-	7: [0,   20,  40, 40],
+	5: [5,   20,  30, 45],  # more Enemy4 in wave 5
 }
 
 # Enemy multipliers based on Enemy1 baseline
-# Enemy1: default (1.0,1.0,1.0)
 const ENEMY_MULT := {
 	1: {"hp": 1.0, "speed": 1.0, "dmg": 1.0},
 	2: {"hp": 1.5, "speed": 0.8, "dmg": 1.4},
@@ -42,9 +37,11 @@ const ENEMY_MULT := {
 	4: {"hp": 1.5, "speed": 1.5, "dmg": 1.5},
 }
 
-# Boss wave rule
-const BOSS_WAVE := 7
-const BOSS_SPAWN_DELAY_IN_WAVE := 20.0
+# Boss wave = 5; wave 5: spawn all in 10s, at 10s screen red + BGM, at 25s boss + flash
+const BOSS_WAVE := 5
+const WAVE5_SPAWN_WINDOW := 25.0   # spawn all 50 enemies within first 25s
+const WAVE5_RED_START := 10.0      # at 10s start screen red + boss BGM
+const BOSS_SPAWN_DELAY_IN_WAVE := 25.0  # at 25s spawn boss + SFX + flash (delay +5s)
 # --------------------------------------------
 
 var rng := RandomNumberGenerator.new()
@@ -65,6 +62,15 @@ var _spawning: bool = false
 
 var _boss_spawned: bool = false
 var _boss: Node2D = null
+
+# Wave 5 screen effect
+var _wave5_t: float = 0.0
+var _screen_red: ColorRect = null
+var _vignette_hit: ColorRect = null  # player hit vignette
+
+# Effect toggles: 6=SFX, 7=shake, 8=enemy flash, 9=vignette, 0=damage numbers (all default true)
+var _effect_flags: Dictionary = { 6: true, 7: true, 8: true, 9: true, 0: true }
+var _player_prev_hp: int = -1
 
 # ---- Pathfinding (AStarGrid2D) ----
 var _astar: AStarGrid2D = AStarGrid2D.new()
@@ -119,17 +125,20 @@ func _ready() -> void:
 
 	_corner_markers = _get_corner_spawn_markers()
 
-	# UI HP bar
+	# UI HP bar and hit vignette
 	if hp_bar != null and player != null:
 		hp_bar.min_value = 0
 		hp_bar.max_value = player.max_hp
 		hp_bar.value = player.hp
+		_player_prev_hp = player.hp
 		if player.has_signal("hp_changed"):
 			player.hp_changed.connect(_on_player_hp_changed)
 
 	# Start wave 1 immediately
 	_start_wave(1)
 	_build_astar_grid()
+	_setup_screen_effects()
+	_ensure_effect_flags()
 
 func _get_corner_spawn_markers() -> Array[Marker2D]:
 	var out: Array[Marker2D] = []
@@ -150,7 +159,39 @@ func _get_corner_spawn_markers() -> Array[Marker2D]:
 		push_error("No corner markers found under World/SpawnPoints")
 	return out
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_P:
+			_skip_to_wave5()
+			return
+		# Effect toggles: 6=SFX, 7=shake, 8=enemy flash, 9=vignette, 0=damage numbers
+		if event.keycode == KEY_6:
+			_toggle_effect(6)
+		elif event.keycode == KEY_7:
+			_toggle_effect(7)
+		elif event.keycode == KEY_8:
+			_toggle_effect(8)
+		elif event.keycode == KEY_9:
+			_toggle_effect(9)
+		elif event.keycode == KEY_0:
+			_toggle_effect(0)
+
+func _toggle_effect(key: int) -> void:
+	_effect_flags[key] = not _effect_flags.get(key, true)
+
+func is_effect_enabled(key: int) -> bool:
+	return _effect_flags.get(key, true)
+
+func _ensure_effect_flags() -> void:
+	for k in [6, 7, 8, 9, 0]:
+		if not _effect_flags.has(k):
+			_effect_flags[k] = true
+
 func _physics_process(delta: float) -> void:
+	if _wave == BOSS_WAVE:
+		_wave5_t += delta
+		_update_wave5_screen(delta)
+
 	if not _spawning:
 		return
 
@@ -159,30 +200,63 @@ func _physics_process(delta: float) -> void:
 		_end_wave()
 		return
 
-	# Spawn loop is timer-driven, so nothing else here.
-
 func _start_wave(w: int) -> void:
 	_wave = w
 	_wave_spawned = 0
 	_wave_quota = int(WAVE_TOTAL.get(w, 0))
 	_wave_end_t = WAVE_DURATION
 	_spawning = true
+	_wave5_t = 0.0
+	if _screen_red != null:
+		_screen_red.visible = false
+		_screen_red.modulate.a = 0.0
 
-	# Wave 7: switch to boss BGM immediately, spawn boss after 20s
+	# Wave 5: BGM from start; spawn all within 25s; at 10s screen red; at 25s boss + SFX + flash
 	if _wave == BOSS_WAVE:
-		_switch_to_boss_bgm()
-		get_tree().create_timer(BOSS_SPAWN_DELAY_IN_WAVE).timeout.connect(_spawn_boss)
+		_switch_to_boss_bgm()  # BGM immediately when wave 5 starts
+		get_tree().create_timer(WAVE5_RED_START).timeout.connect(_on_wave5_red_start)
+		get_tree().create_timer(BOSS_SPAWN_DELAY_IN_WAVE).timeout.connect(_on_wave5_boss_spawn)
 
-	# Start spawn timer
+	# Start spawn timer (wave 5 uses compressed window)
 	_schedule_next_spawn()
 
 func _end_wave() -> void:
 	_spawning = false
 
-	if _wave >= 7:
+	if _wave >= BOSS_WAVE:
 		return
 
 	_start_wave(_wave + 1)
+
+func _on_wave5_red_start() -> void:
+	if _screen_red != null:
+		_screen_red.visible = true
+
+func _on_wave5_boss_spawn() -> void:
+	_spawn_boss()
+	_play_boss_spawn_sfx()
+	_flash_screen_boss()
+
+func _play_boss_spawn_sfx() -> void:
+	var path := _find_sound_file("bosssummon", [".mp3", ".ogg", ".wav"])
+	if path != "":
+		var asp := AudioStreamPlayer.new()
+		asp.stream = load(path)
+		add_child(asp)
+		asp.finished.connect(asp.queue_free)
+		asp.play()
+
+func _flash_screen_boss() -> void:
+	if _screen_red == null:
+		return
+	# Max red then: quick bright (flash) -> dark -> bright -> back to current red
+	var tw := create_tween()
+	var max_red := Color(0.85, 0.0, 0.0, 0.55)
+	var flash := Color(1.0, 0.2, 0.2, 0.9)
+	tw.tween_property(_screen_red, "modulate", flash, 0.06).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_screen_red, "modulate", Color(0.5, 0.0, 0.0, 0.7), 0.08).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_screen_red, "modulate", flash, 0.06).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_screen_red, "modulate", max_red, 0.1).set_trans(Tween.TRANS_SINE)
 
 func _schedule_next_spawn() -> void:
 	if not _spawning:
@@ -190,12 +264,16 @@ func _schedule_next_spawn() -> void:
 	if _wave_spawned >= _wave_quota:
 		return
 
-	# Spread spawns across the remaining time (roughly uniform, with slight jitter)
-	var remaining := maxf(0.01, _wave_end_t)
+	# Wave 5: spawn all within WAVE5_SPAWN_WINDOW (10s); others spread over wave duration
+	var window: float = _wave_end_t
+	if _wave == BOSS_WAVE:
+		var elapsed := _wave5_t
+		window = maxf(0.3, WAVE5_SPAWN_WINDOW - elapsed)
+		window = minf(window, WAVE5_SPAWN_WINDOW)
 	var remaining_spawns = max(1, _wave_quota - _wave_spawned)
-	var base_interval := remaining / float(remaining_spawns)
-	var jitter := base_interval * 0.25
-	var interval := clampf(base_interval + rng.randf_range(-jitter, jitter), 0.05, 1.2)
+	var base_interval := window / float(remaining_spawns)
+	var jitter := base_interval * 0.2
+	var interval := clampf(base_interval + rng.randf_range(-jitter, jitter), 0.08, 0.8)
 
 	get_tree().create_timer(interval).timeout.connect(func():
 		_spawn_one_enemy_for_wave()
@@ -258,8 +336,8 @@ func _apply_enemy_stats(enemy_node: Node, idx: int) -> void:
 	# Baseline from Enemy1 numbers (hard source: Enemy script exports)
 	# Enemy script fields in your project: speed_chase, max_hp, contact_damage, hp
 	var base_hp := 20
-	var base_speed := 90.0
-	var base_dmg := 4
+	var base_speed := 80.0
+	var base_dmg := 3
 
 	# If you later change Enemy1 defaults, update these three to match Enemy1 exports.
 	# (Keeping it explicit avoids having to instantiate a hidden Enemy1.)
@@ -271,6 +349,8 @@ func _apply_enemy_stats(enemy_node: Node, idx: int) -> void:
 
 	hp_val = max(1, hp_val)
 	spd_val = max(10.0, spd_val)
+	if idx == 3:
+		spd_val = max(10.0, spd_val - 10.0)  # Enemy3: reduce speed by 10
 	dmg_val = max(1, dmg_val)
 
 	# Apply to enemy script if fields exist
@@ -314,17 +394,93 @@ func _spawn_boss() -> void:
 		_boss.connect("died", Callable(self, "_on_boss_died"))
 
 func _on_boss_died() -> void:
-	# optional: return to normal BGM after boss dies
 	if music_boss and music_boss.playing:
 		music_boss.stop()
 	if music_normal:
 		music_normal.play()
 
-func _on_player_hp_changed(current: int, max_hp: int) -> void:
-	if hp_bar == null:
+func _setup_screen_effects() -> void:
+	var ui := get_node_or_null("UI") as CanvasLayer
+	if ui == null:
 		return
-	hp_bar.max_value = max_hp
-	hp_bar.value = current
+	# Wave 5 red overlay (full screen, dark red tint)
+	_screen_red = ColorRect.new()
+	_screen_red.name = "ScreenRed"
+	_screen_red.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_screen_red.offset_left = 0
+	_screen_red.offset_top = 0
+	_screen_red.offset_right = 0
+	_screen_red.offset_bottom = 0
+	_screen_red.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_screen_red.color = Color(0.6, 0.0, 0.0, 0.0)
+	_screen_red.visible = false
+	ui.add_child(_screen_red)
+
+	# Player hit vignette: red edges, transparent center (use a TextureRect with radial gradient or ColorRect with shader; Godot has no built-in radial. We use a large ColorRect and a simple shader or multiple rects. Simpler: full-screen ColorRect with color that has alpha gradient via script - we can't do that with one ColorRect. Use a SubViewport + sprite with vignette texture, or draw a circle in the center with a custom draw. Easiest: full screen semi-transparent red that fades out quickly - center still visible.)
+	_vignette_hit = ColorRect.new()
+	_vignette_hit.name = "VignetteHit"
+	_vignette_hit.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vignette_hit.offset_left = 0
+	_vignette_hit.offset_top = 0
+	_vignette_hit.offset_right = 0
+	_vignette_hit.offset_bottom = 0
+	_vignette_hit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vignette_hit.color = Color(1, 1, 1, 1)
+	_vignette_hit.visible = false
+	var shader := load("res://Assets/vignette_hit.gdshader") as Shader
+	if shader != null:
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("color", Color(0.75, 0.0, 0.0, 0.5))
+		mat.set_shader_parameter("center_radius", 0.3)
+		_vignette_hit.material = mat
+	else:
+		_vignette_hit.color = Color(0.7, 0.0, 0.0, 0.35)
+	ui.add_child(_vignette_hit)
+
+func _update_wave5_screen(_delta: float) -> void:
+	if _screen_red == null or not _screen_red.visible:
+		return
+	# Ramp red from 10s to 20s (0.0 -> ~0.5 alpha), then stay max until flash
+	var t := _wave5_t - WAVE5_RED_START
+	if t <= 0.0:
+		_screen_red.modulate = Color(0.6, 0.0, 0.0, 0.0)
+		return
+	var ramp := clampf(t / (BOSS_SPAWN_DELAY_IN_WAVE - WAVE5_RED_START), 0.0, 1.0)
+	_screen_red.color = Color(0.55, 0.0, 0.0, 0.08 + ramp * 0.5)
+	_screen_red.modulate = Color(1, 1, 1, 1)
+
+func _skip_to_wave5() -> void:
+	# Clear all enemies
+	for c in enemies_parent.get_children():
+		c.queue_free()
+	if _boss != null and is_instance_valid(_boss):
+		_boss.queue_free()
+	_boss = null
+	_boss_spawned = false
+	_spawning = false
+	_start_wave(BOSS_WAVE)
+
+func _show_hit_vignette() -> void:
+	if _vignette_hit == null:
+		return
+	_vignette_hit.visible = true
+	_vignette_hit.modulate.a = 1.0
+	var tw := create_tween()
+	tw.tween_property(_vignette_hit, "modulate:a", 0.0, 0.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if is_instance_valid(_vignette_hit):
+			_vignette_hit.visible = false
+	)
+
+func _on_player_hp_changed(current: int, max_hp: int) -> void:
+	if hp_bar != null:
+		hp_bar.max_value = max_hp
+		hp_bar.value = current
+	# Player hit vignette (effect 9): edges red, center faded
+	if _player_prev_hp >= 0 and current < _player_prev_hp and is_effect_enabled(9):
+		_show_hit_vignette()
+	_player_prev_hp = current
 	
 func on_pistol_kill() -> void:
 	if player == null:
@@ -340,26 +496,38 @@ func _build_astar_grid() -> void:
 		_astar_ready = false
 		return
 
-	# 用 TileMapLayer 的 used rect 来定义寻路网格范围
 	var rect := _wall_layer.get_used_rect()
 	if rect.size == Vector2i.ZERO:
-		# 如果 used_rect 为空，说明 TM_Wall 上没放 tile（或者墙在别的 layer）
 		_astar_ready = false
 		return
 
 	_astar.region = rect
-	_astar.cell_size = Vector2(16, 16) # 你工程 tile 大小一般是 16；如果不是，改成你的 tile size
+	_astar.cell_size = Vector2(16, 16)
 	_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
 	_astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
 	_astar.default_estimate_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
 	_astar.update()
 
-	# 把墙格子标为不可走
 	var wall_cells := _wall_layer.get_used_cells()
 	for c in wall_cells:
-		# 只标记在 region 内的
 		if rect.has_point(c):
 			_astar.set_point_solid(c, true)
+
+	# Prefer paths away from walls: higher cost for cells adjacent to walls (no shortest path through tight gaps)
+	for x in range(rect.position.x, rect.position.x + rect.size.x):
+		for y in range(rect.position.y, rect.position.y + rect.size.y):
+			var c := Vector2i(x, y)
+			if _astar.is_point_solid(c):
+				continue
+			var weight := 1.0
+			for dx in range(-1, 2):
+				for dy in range(-1, 2):
+					if dx == 0 and dy == 0:
+						continue
+					var nc := c + Vector2i(dx, dy)
+					if rect.has_point(nc) and _astar.is_point_solid(nc):
+						weight += 0.35
+			_astar.set_point_weight_scale(c, weight)
 
 	_astar_ready = true
 
@@ -406,11 +574,12 @@ func get_next_path_point(from_world: Vector2, to_world: Vector2) -> Vector2:
 	if from_cell == Vector2i(999999, 999999) or to_cell == Vector2i(999999, 999999):
 		return to_world
 
-	var path: PackedVector2Array = _astar.get_point_path(from_cell, to_cell)
-	# path points are in CELL coordinates
+	var path: Array = _astar.get_id_path(from_cell, to_cell)
 	if path.size() < 2:
 		return to_world
 
-	# Return the NEXT step (index 1), not index 0 (which is current cell)
-	var next_cell := Vector2i(int(path[1].x), int(path[1].y))
-	return _cell_to_global(next_cell)
+	var next_cell := Vector2i(path[1].x, path[1].y)
+	var pos := _cell_to_global(next_cell)
+	# Random offset so enemies don't all stack on the same point (reduces lining up)
+	pos += Vector2(rng.randf_range(-8.0, 8.0), rng.randf_range(-8.0, 8.0))
+	return pos

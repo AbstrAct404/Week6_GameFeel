@@ -2,11 +2,11 @@ extends CharacterBody2D
 
 signal hp_changed(current: int, max_hp: int)
 
-@export var speed: float = 220.0
+@export var speed: float = 230.0
 @export var auto_range: float = 550.0
 
 @export var max_hp: int = 40
-@export var crit_chance_default: float = 0.10
+@export var crit_chance_default: float = 0.30
 var hp: int
 
 @export var bullet_scene: PackedScene
@@ -14,8 +14,8 @@ var hp: int
 
 # Per-weapon cooldowns (seconds)
 @export var pistol_cooldown: float = 0.45
-@export var rifle_cooldown: float = 0.20
-@export var shotgun_cooldown: float = 0.75
+@export var rifle_cooldown: float = 0.26
+@export var shotgun_cooldown: float = 0.68
 @export var sniper_cooldown: float = 1.10
 
 # NEW: cooldown multipliers (extend shotgun/sniper)
@@ -79,10 +79,10 @@ var _bullet_textures := {
 
 # Weapon damages (per bullet)
 var _weapon_damage := {
-	WeaponType.PISTOL: 8,
-	WeaponType.RIFLE: 4,
-	WeaponType.SHOTGUN: 6,
-	WeaponType.SNIPER: 45,
+	WeaponType.PISTOL: 11,
+	WeaponType.RIFLE: 7,
+	WeaponType.SHOTGUN: 8,
+	WeaponType.SNIPER: 50,
 }
 
 # Weapon fire SFX
@@ -94,6 +94,12 @@ var _weapon_fire_sfx := {
 }
 
 var _hit_sfx: AudioStream = preload("res://Assets/Sound effects/PlayerGetHit.mp3")
+
+# Invincibility: 0.5s after taking damage, no damage and no collision with enemies (can pass through)
+const INVINCIBLE_DURATION := 0.5
+var _invincible_timer: float = 0.0
+var _collision_mask_walls_only: int = 1
+var _collision_mask_normal: int = 1
 
 # ---- Camera shake runtime state ----
 var _rng := RandomNumberGenerator.new()
@@ -119,6 +125,11 @@ func _ready() -> void:
 	hp = max_hp
 	emit_signal("hp_changed", hp, max_hp)
 	_apply_weapon_visuals()
+
+	# Collision: layer 1 = walls, layer 2 = enemies; invincible = walls only (pass through enemies)
+	_collision_mask_walls_only = 1
+	_collision_mask_normal = 3
+	collision_mask = _collision_mask_normal
 
 	# Cache main camera (Main/Camera2D)
 	# Cache camera (it is a child of the Player instance in Main.tscn: World/Player/Camera2D)
@@ -149,17 +160,26 @@ func set_weapon(w: int) -> void:
 		return
 	_weapon = w
 	_apply_weapon_visuals()
-	# small QoL: allow immediate shot after switching
-	_cooldown_t = 0.0
+	# 0.5s built-in cooldown after switching before can shoot
+	_cooldown_t = 0.5
 
 func take_damage(amount: int = 1) -> void:
+	if _invincible_timer > 0.0:
+		return
+	_invincible_timer = INVINCIBLE_DURATION
+
 	hp = clamp(hp - max(1, amount), 0, max_hp)
 	emit_signal("hp_changed", hp, max_hp)
-	if sfx_hit:
+	var main := get_tree().current_scene
+	var sfx_ok = main == null or not main.has_method("is_effect_enabled") or main.call("is_effect_enabled", 6)
+	if sfx_ok and sfx_hit:
 		sfx_hit.stream = _hit_sfx
 		sfx_hit.play()
 	if hp <= 0:
 		get_tree().reload_current_scene()
+
+func is_invincible() -> bool:
+	return _invincible_timer > 0.0
 
 func _apply_weapon_visuals() -> void:
 	# Replace weapon scene under WeaponHolder
@@ -185,9 +205,21 @@ func _apply_weapon_visuals() -> void:
 	_weapon_fire_point = _weapon_instance.get_node_or_null("FirePoint") as Node2D
 
 func _physics_process(delta: float) -> void:
+	# --- invincibility: no damage and no collision with enemies (can pass through) ---
+	if _invincible_timer > 0.0:
+		_invincible_timer -= delta
+		collision_mask = _collision_mask_walls_only
+	else:
+		collision_mask = _collision_mask_normal
+
 	# --- movement ---
+	var effective_speed := speed
+	if _weapon == WeaponType.PISTOL:
+		effective_speed += 10.0
+	elif _weapon == WeaponType.SNIPER:
+		effective_speed -= 10.0
 	var move_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	velocity = move_dir * speed
+	velocity = move_dir * effective_speed
 	move_and_slide()
 
 	# --- movement animation ---
@@ -211,13 +243,16 @@ func _physics_process(delta: float) -> void:
 		_cooldown_t = _get_weapon_cooldown()
 		_play_fire_sfx()
 		_shoot_with_weapon(target.global_position)
-		_apply_weapon_shake() # <<< Game feel
-		_play_muzzle_flash()
+		_apply_weapon_shake()
+		_play_muzzle_flash()  # every shot (including rifle hold)
 	# --- camera shake update ---
 	_update_camera_shake(delta)
 
 func _play_fire_sfx() -> void:
 	if sfx_fire == null:
+		return
+	var main := get_tree().current_scene
+	if main != null and main.has_method("is_effect_enabled") and not main.call("is_effect_enabled", 6):
 		return
 	if _weapon_fire_sfx.has(_weapon):
 		sfx_fire.stream = _weapon_fire_sfx[_weapon]
@@ -384,8 +419,21 @@ func _spawn_bullet(spawn_pos: Vector2, dir: Vector2) -> void:
 	if _weapon_damage.has(_weapon):
 		b.damage = int(_weapon_damage[_weapon])
 		
-	# Pass weapon type & crit flag to bullet
+	# Pass weapon type & pierce settings
 	b.weapon_type = _weapon
+	if _weapon == WeaponType.PISTOL:
+		b.max_pierce = 2
+		b.max_wall_pierce = 0  # cannot pierce walls
+	elif _weapon == WeaponType.SNIPER:
+		b.max_pierce = 5
+		b.max_wall_pierce = 1  # can pierce 1 wall
+		b.speed *= 2.0  # sniper bullet flight speed doubled
+	elif _weapon == WeaponType.RIFLE:
+		b.max_pierce = 2  # pierce 1 enemy (hit 2 total), 50% after first
+		b.max_wall_pierce = 0
+	elif _weapon == WeaponType.SHOTGUN:
+		b.max_pierce = 1  # no pierce: hit one enemy only
+		b.max_wall_pierce = 0
 
 	var crit := false
 	if _weapon == WeaponType.SNIPER:
@@ -423,8 +471,11 @@ func _aim_at(target_pos: Vector2) -> void:
 	if _weapon_sprite:
 		_weapon_sprite.flip_h = false
 
-# ---------------- Game Feel: Shake implementation ----------------
+# ---------------- Game Feel: Shake implementation (effect 7) ----------------
 func _apply_weapon_shake() -> void:
+	var main := get_tree().current_scene
+	if main != null and main.has_method("is_effect_enabled") and not main.call("is_effect_enabled", 7):
+		return
 	match _weapon:
 		WeaponType.RIFLE:
 			_start_shake(shake_rifle_strength, shake_rifle_duration)
@@ -525,7 +576,7 @@ func _play_muzzle_flash() -> void:
 
 	_ensure_muzzle_flash()
 
-	var frames := _get_muzzle_frames_for_weapon(_weapon) # 你之前那套 6 帧 sprite sheet 构造函数
+	var frames := _get_muzzle_frames_for_weapon(_weapon)
 	if frames == null:
 		return
 
@@ -533,6 +584,8 @@ func _play_muzzle_flash() -> void:
 	_muzzle_flash.animation = "flash"
 	_muzzle_flash.frame = 0
 	_muzzle_flash.visible = true
+	# Faster playback for rifle (and all): play every shot clearly
+	_muzzle_flash.sprite_frames.set_animation_speed("flash", 45.0)
 
 	var p := Vector2.ZERO
 	if _weapon_fire_point != null:
@@ -565,11 +618,13 @@ func _play_muzzle_flash() -> void:
 	_muzzle_flash.flip_v = false
 
 	_muzzle_flash.play("flash")
+	# Hide when animation ends (so each shot shows full flash; no timer conflict when holding fire)
+	if not _muzzle_flash.animation_finished.is_connected(_on_muzzle_flash_finished):
+		_muzzle_flash.animation_finished.connect(_on_muzzle_flash_finished)
 
-	get_tree().create_timer(0.22).timeout.connect(func():
-		if is_instance_valid(_muzzle_flash):
-			_muzzle_flash.visible = false
-	)
+func _on_muzzle_flash_finished() -> void:
+	if is_instance_valid(_muzzle_flash) and _muzzle_flash.animation == "flash":
+		_muzzle_flash.visible = false
 
 func _ensure_muzzle_flash() -> void:
 	if _muzzle_flash != null and is_instance_valid(_muzzle_flash):
