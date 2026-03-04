@@ -94,6 +94,10 @@ frame_progress = 0.7994707
 [node name="MuzzlePivot" type="Marker2D" parent="." unique_id=1978569885]
 position = Vector2(28, 7)
 
+[node name="WeaponHolder" type="Node2D" parent="MuzzlePivot" unique_id=1444105690]
 
-[node name="WeaponHolder" type="Node2D" parent="MuzzlePivot"]
-position = Vector2(0, 0)
+[node name="SFXFire" type="AudioStreamPlayer" parent="." unique_id=400000011]
+volume_db = -4.0
+
+[node name="SFXHit" type="AudioStreamPlayer" parent="." unique_id=400000012]
+volume_db = -2.0

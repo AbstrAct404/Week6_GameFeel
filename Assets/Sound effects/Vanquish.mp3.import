@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://b35ci5ot8vg0j"
+path="res://.godot/imported/Vanquish.mp3-04f011e718b7b0d75c8f5ba9737e70f2.mp3str"
+
+[deps]
+
+source_file="res://Assets/Sound effects/Vanquish.mp3"
+dest_files=["res://.godot/imported/Vanquish.mp3-04f011e718b7b0d75c8f5ba9737e70f2.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
