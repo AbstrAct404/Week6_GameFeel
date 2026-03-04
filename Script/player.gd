@@ -1,5 +1,10 @@
 extends CharacterBody2D
 
+signal hp_changed(current: int, max_hp: int)
+
+@export var max_hp: int = 100
+var hp: int
+
 @export var speed: float = 220.0
 @export var auto_range: float = 550.0
 
@@ -46,6 +51,10 @@ var _bullet_textures := {
 
 func _ready() -> void:
 	_apply_weapon_visuals()
+	
+	hp = max_hp
+	emit_signal("hp_changed", hp, max_hp)
+	print("Player HP:", hp, "/", max_hp)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -295,3 +304,8 @@ func _aim_at(target_pos: Vector2) -> void:
 	# Avoid double-flipping: keep horizontal flip off and use vertical mirror only.
 	if _weapon_sprite:
 		_weapon_sprite.flip_h = false
+
+func take_damage(amount: int) -> void:
+	hp = clamp(hp - amount, 0, max_hp)
+	emit_signal("hp_changed", hp, max_hp)
+	print("Player took damage:", amount, " -> HP:", hp, "/", max_hp)

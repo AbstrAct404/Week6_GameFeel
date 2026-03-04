@@ -7,6 +7,8 @@ extends Node2D
 @onready var enemies_parent: Node2D = $World/Enemies
 @onready var spawn_points: Array[Node] = $World/SpawnPoints.get_children()
 
+@onready var player = $World/Player
+@onready var hp_bar: ProgressBar = $UI/HpBar
 # marker -> enemy
 var _corner_enemy := {}
 
@@ -31,7 +33,14 @@ func _ready() -> void:
 		if m == null:
 			continue
 		_spawn_at_corner(m)
+	
+	#UI
+	hp_bar.min_value = 0
+	hp_bar.max_value = player.max_hp
+	hp_bar.value = player.hp
 
+	player.hp_changed.connect(_on_player_hp_changed)
+	
 func _pick_enemy_scene() -> PackedScene:
 	if enemy_scenes.is_empty():
 		return enemy_scene
@@ -65,3 +74,7 @@ func _spawn_at_corner(m: Marker2D) -> void:
 func _on_enemy_died(m: Marker2D) -> void:
 	_corner_enemy.erase(m)
 	_spawn_at_corner(m)
+
+func _on_player_hp_changed(current: int, max_hp: int) -> void:
+	hp_bar.max_value = max_hp
+	hp_bar.value = current
