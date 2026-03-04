@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://cykhmwj1htabh"
+path="res://.godot/imported/Shield.mp3-53bd99cbbdd7c40c303d6b50c7eb9095.mp3str"
+
+[deps]
+
+source_file="res://Assets/Sound effects/Shield.mp3"
+dest_files=["res://.godot/imported/Shield.mp3-53bd99cbbdd7c40c303d6b50c7eb9095.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

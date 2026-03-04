@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bqrcpul034k2c"
+path="res://.godot/imported/Sniper.wav-cb23a10b53046664f93bad8d17e57de7.sample"
+
+[deps]
+
+source_file="res://Assets/Sound effects/Sniper.wav"
+dest_files=["res://.godot/imported/Sniper.wav-cb23a10b53046664f93bad8d17e57de7.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

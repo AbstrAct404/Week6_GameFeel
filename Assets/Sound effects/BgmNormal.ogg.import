@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://ck46wsiwh1yrv"
+path="res://.godot/imported/BgmNormal.ogg-96d0f88b147d53931462a0e6583e3625.oggvorbisstr"
+
+[deps]
+
+source_file="res://Assets/Sound effects/BgmNormal.ogg"
+dest_files=["res://.godot/imported/BgmNormal.ogg-96d0f88b147d53931462a0e6583e3625.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
