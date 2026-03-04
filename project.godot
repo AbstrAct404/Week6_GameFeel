@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Game Design Week 6"
-run/main_scene="uid://blymur0jwt46f"
+run/main_scene="uid://duiytaygeqy2o"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 

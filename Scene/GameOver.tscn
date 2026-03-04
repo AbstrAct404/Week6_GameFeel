@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://dcpq2vrolgjko"]
+
+[ext_resource type="Script" uid="uid://dhrrrf3j8rjlj" path="res://Script/game_over.gd" id="1_tqw8y"]
+[ext_resource type="PackedScene" uid="uid://dknvac6vetwvf" path="res://Scene/tm_floor.tscn" id="2_tqw8y"]
+
+[node name="GameOver" type="Node2D" unique_id=1113489710]
+script = ExtResource("1_tqw8y")
+
+[node name="TM_Floor" parent="." unique_id=1036434747 instance=ExtResource("2_tqw8y")]
+position = Vector2(578, 323)
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1179646511]
+offset_left = 3.0
+offset_top = 5.0
+offset_right = 1151.0
+offset_bottom = 652.0
+color = Color(0, 0, 0, 0.5)
+
+[node name="Restart" type="Button" parent="." unique_id=707440673]
+offset_left = 545.0
+offset_top = 383.0
+offset_right = 610.0
+offset_bottom = 414.0
+text = "Restart
+"
+
+[node name="Quit" type="Button" parent="." unique_id=1251734076]
+offset_left = 555.0
+offset_top = 460.0
+offset_right = 597.0
+offset_bottom = 491.0
+text = "Quit"
+
+[connection signal="pressed" from="Restart" to="." method="_on_restart_pressed"]
+[connection signal="pressed" from="Quit" to="." method="_on_quit_pressed"]

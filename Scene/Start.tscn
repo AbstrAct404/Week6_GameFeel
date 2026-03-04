@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://duiytaygeqy2o"]
+
+[ext_resource type="Script" uid="uid://dlssfn88rsh1x" path="res://Script/start.gd" id="1_hcnmk"]
+[ext_resource type="PackedScene" uid="uid://dknvac6vetwvf" path="res://Scene/tm_floor.tscn" id="2_hcnmk"]
+[ext_resource type="Texture2D" uid="uid://bmox3bml8wc7v" path="res://Assets/Char 1/with hands/idle_0.png" id="3_wyf2n"]
+[ext_resource type="Texture2D" uid="uid://cxpj4ugp34fqf" path="res://Assets/Enemies/Enemy 1/idle_0.png" id="4_upsqf"]
+
+[node name="Start" type="Node2D" unique_id=2124652933]
+script = ExtResource("1_hcnmk")
+
+[node name="TM_Floor" parent="." unique_id=1036434747 instance=ExtResource("2_hcnmk")]
+position = Vector2(587, 330.19165)
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=394652729]
+offset_left = 10.0
+offset_top = 2.1916504
+offset_right = 1159.0
+offset_bottom = 664.19165
+color = Color(0, 0, 0, 0.5)
+
+[node name="Player" type="Sprite2D" parent="." unique_id=796677866]
+position = Vector2(414.00006, 177.19168)
+scale = Vector2(0.35839844, 0.36096576)
+texture = ExtResource("3_wyf2n")
+
+[node name="Enemy" type="Sprite2D" parent="." unique_id=105804386]
+position = Vector2(743, 151.1916)
+scale = Vector2(-0.41728127, 0.40253088)
+texture = ExtResource("4_upsqf")
+
+[node name="Button" type="Button" parent="." unique_id=198207930]
+offset_left = 538.0
+offset_top = 393.19165
+offset_right = 635.0
+offset_bottom = 424.19165
+text = "Start"
+
+[connection signal="pressed" from="Button" to="." method="_on_button_pressed"]
