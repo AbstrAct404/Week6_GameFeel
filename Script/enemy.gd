@@ -1,10 +1,8 @@
 extends CharacterBody2D
 
-var can_hit := true
-@export var contact_damage: int = 10
-
 @export var speed_chase := 90.0
 @export var max_hp: int = 3
+@export var contact_damage: int = 1
 
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hitbox: Area2D = $Hitbox
@@ -42,13 +40,12 @@ func _update_anim() -> void:
 			anim.play("idle")
 
 func _on_hitbox_body_entered(body: Node) -> void:
-	if not can_hit:
-		return
-	if body.is_in_group("player") and body.has_method("take_damage"):
-		can_hit = false
-		body.take_damage(contact_damage)
-		await get_tree().create_timer(0.6).timeout
-		can_hit = true
+	if body.is_in_group("player"):
+		# Prefer dealing damage so we can play hit SFX; fallback to scene reload.
+		if body.has_method("take_damage"):
+			body.call("take_damage", contact_damage)
+		else:
+			get_tree().reload_current_scene()
 
 func get_hp() -> int:
 	return hp

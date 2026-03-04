@@ -2,11 +2,11 @@ extends CharacterBody2D
 
 signal hp_changed(current: int, max_hp: int)
 
-@export var max_hp: int = 100
-var hp: int
-
 @export var speed: float = 220.0
 @export var auto_range: float = 550.0
+
+@export var max_hp: int = 40
+var hp: int
 
 @export var bullet_scene: PackedScene
 @export var bullet_spawn_offset: float = 12.0
@@ -24,6 +24,8 @@ var hp: int
 @onready var anim: AnimatedSprite2D = $Sprite
 @onready var muzzle: Node2D = $MuzzlePivot
 @onready var weapon_holder: Node2D = $MuzzlePivot/WeaponHolder
+@onready var sfx_fire: AudioStreamPlayer = $SFXFire
+@onready var sfx_hit: AudioStreamPlayer = $SFXHit
 
 enum WeaponType { PISTOL, RIFLE, SHOTGUN, SNIPER }
 
@@ -41,20 +43,36 @@ var _weapon_instance: Node2D = null
 var _weapon_sprite: Sprite2D = null
 var _weapon_fire_point: Node2D = null
 
-
+# NOTE: user requested sniper/shotgun bullet swap already applied.
 var _bullet_textures := {
 	WeaponType.PISTOL: preload("res://Assets/Weapons/Extras/bullet.png"),
-	WeaponType.RIFLE: preload("res://Assets/Weapons/Extras/rifle_bullet.png"),
+	WeaponType.RIFLE: preload("res://Assets/Weapons/Extras/rifle_bullet.png"),	
 	WeaponType.SHOTGUN: preload("res://Assets/Weapons/Extras/sniper_bullet.png"),
 	WeaponType.SNIPER: preload("res://Assets/Weapons/Extras/shotgun_bullet.png"),
 }
 
+# Weapon damages (per bullet)
+var _weapon_damage := {
+	WeaponType.PISTOL: 8,
+	WeaponType.RIFLE: 4,
+	WeaponType.SHOTGUN: 6,
+	WeaponType.SNIPER: 45,
+}
+
+# Weapon fire SFX
+var _weapon_fire_sfx := {
+	WeaponType.PISTOL: preload("res://Assets/Sound effects/Pistol.wav"),
+	WeaponType.RIFLE: preload("res://Assets/Sound effects/Rifle.wav"),
+	WeaponType.SHOTGUN: preload("res://Assets/Sound effects/Shotgun.wav"),
+	WeaponType.SNIPER: preload("res://Assets/Sound effects/Sniper.wav"),
+}
+
+var _hit_sfx: AudioStream = preload("res://Assets/Sound effects/PlayerGetHit.mp3")
+
 func _ready() -> void:
-	_apply_weapon_visuals()
-	
 	hp = max_hp
 	emit_signal("hp_changed", hp, max_hp)
-	print("Player HP:", hp, "/", max_hp)
+	_apply_weapon_visuals()
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -75,6 +93,15 @@ func set_weapon(w: int) -> void:
 	_apply_weapon_visuals()
 	# small QoL: allow immediate shot after switching
 	_cooldown_t = 0.0
+
+func take_damage(amount: int = 1) -> void:
+	hp = clamp(hp - max(1, amount), 0, max_hp)
+	emit_signal("hp_changed", hp, max_hp)
+	if sfx_hit:
+		sfx_hit.stream = _hit_sfx
+		sfx_hit.play()
+	if hp <= 0:
+		get_tree().reload_current_scene()
 
 func _apply_weapon_visuals() -> void:
 	# Replace weapon scene under WeaponHolder
@@ -98,7 +125,6 @@ func _apply_weapon_visuals() -> void:
 
 	_weapon_sprite = _weapon_instance.get_node_or_null("Sprite") as Sprite2D
 	_weapon_fire_point = _weapon_instance.get_node_or_null("FirePoint") as Node2D
-
 
 func _physics_process(delta: float) -> void:
 	# --- movement ---
@@ -125,7 +151,15 @@ func _physics_process(delta: float) -> void:
 
 	if target != null and Input.is_action_pressed("shoot") and _cooldown_t <= 0.0:
 		_cooldown_t = _get_weapon_cooldown()
+		_play_fire_sfx()
 		_shoot_with_weapon(target.global_position)
+
+func _play_fire_sfx() -> void:
+	if sfx_fire == null:
+		return
+	if _weapon_fire_sfx.has(_weapon):
+		sfx_fire.stream = _weapon_fire_sfx[_weapon]
+		sfx_fire.play()
 
 func _get_weapon_cooldown() -> float:
 	match _weapon:
@@ -210,14 +244,14 @@ func find_sniper_target() -> Node2D:
 		if not _is_in_view(e.global_position):
 			continue
 
-		var hp := 1
+		var hp_val := 1
 		if e.has_method("get_hp"):
-			hp = int(e.call("get_hp"))
+			hp_val = int(e.call("get_hp"))
 		elif "hp" in e:
-			hp = int(e.hp)
+			hp_val = int(e.hp)
 
-		if hp > best_hp:
-			best_hp = hp
+		if hp_val > best_hp:
+			best_hp = hp_val
 			best = e
 
 	return best
@@ -276,6 +310,10 @@ func _spawn_bullet(spawn_pos: Vector2, dir: Vector2) -> void:
 	if spr != null and _bullet_textures.has(_weapon):
 		spr.texture = _bullet_textures[_weapon]
 
+	# Set bullet damage per weapon
+	if _weapon_damage.has(_weapon):
+		b.damage = int(_weapon_damage[_weapon])
+
 	var bullets := get_tree().current_scene.get_node_or_null("World/Bullets") as Node2D
 	if bullets != null:
 		bullets.add_child(b)
@@ -293,7 +331,7 @@ func _aim_at(target_pos: Vector2) -> void:
 	var ang := dir.angle()
 
 	if dir.x < 0.0:
-		muzzle.rotation = ang
+		muzzle.rotation = ang 
 		if _weapon_sprite:
 			_weapon_sprite.flip_v = true
 	else:
@@ -304,8 +342,3 @@ func _aim_at(target_pos: Vector2) -> void:
 	# Avoid double-flipping: keep horizontal flip off and use vertical mirror only.
 	if _weapon_sprite:
 		_weapon_sprite.flip_h = false
-
-func take_damage(amount: int) -> void:
-	hp = clamp(hp - amount, 0, max_hp)
-	emit_signal("hp_changed", hp, max_hp)
-	print("Player took damage:", amount, " -> HP:", hp, "/", max_hp)
