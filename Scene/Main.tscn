@@ -278,3 +278,10 @@ position = Vector2(-264, 138)
 
 [node name="CornerBR" type="Marker2D" parent="World/SpawnPoints" unique_id=610172506]
 position = Vector2(267, 139)
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=1664078392]
+
+[node name="HpBar" type="ProgressBar" parent="UI" unique_id=393432297]
+offset_right = 300.0
+offset_bottom = 24.0
+value = 100.0

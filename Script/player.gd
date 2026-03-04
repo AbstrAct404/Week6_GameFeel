@@ -13,6 +13,16 @@ extends CharacterBody2D
 @onready var muzzle: Node2D = $MuzzlePivot
 @onready var gun: Sprite2D = $MuzzlePivot/Gun
 
+
+signal hp_changed(current: int, max_hp: int)
+signal died
+
+@export var max_hp: int = 100
+var hp: int = 100
+
+func _enter_tree():
+	hp = max_hp
+
 var _cooldown_t: float = 0.0
 
 func _physics_process(delta: float) -> void:
@@ -111,3 +121,21 @@ func _aim_at(target_pos: Vector2) -> void:
 		if gun: gun.flip_v = true
 	else:
 		if gun: gun.flip_v = false
+		
+
+#HP part
+
+func _ready():
+	hp = max_hp
+	emit_signal("hp_changed", hp, max_hp)
+	
+func take_damage(amount: int) -> void:
+	hp = clamp(hp - amount, 0, max_hp)
+	emit_signal("hp_changed", hp, max_hp)
+	if hp <= 0:
+		emit_signal("died")
+		get_tree().reload_current_scene()
+		
+func heal(amount: int) -> void:
+	hp = clamp(hp + amount, 0, max_hp)
+	emit_signal("hp_changed", hp, max_hp)
