@@ -104,6 +104,16 @@ func _ready() -> void:
 			player.hp_changed.connect(_on_player_hp_changed)
 	_setup_boss_gamefeel_nodes()
 	
+	_setup_world_modulate()
+	
+func _setup_world_modulate() -> void:
+	_world_modulate = get_node_or_null("WorldModulate") as CanvasModulate
+	if _world_modulate == null:
+		_world_modulate = CanvasModulate.new()
+		_world_modulate.name = "WorldModulate"
+		add_child(_world_modulate)
+	_world_modulate.color = Color(1, 1, 1, 1)
+		
 func _setup_boss_gamefeel_nodes() -> void:
 	# Boss summon SFX
 	_boss_summon_sfx = get_node_or_null("BossSummonSFX") as AudioStreamPlayer
@@ -208,12 +218,28 @@ func _spawn_boss() -> void:
 
 	_boss.global_position = pos
 	bosses_parent.add_child(_boss)
+	_play_boss_red_mask()
 	_play_boss_summon_gamefeel()
 	_start_boss_pressure()
 	
 	if _boss.has_signal("died"):
 		_boss.connect("died", Callable(self, "_on_boss_died"))
 
+func _play_boss_red_mask() -> void:
+	if _world_modulate == null:
+		_setup_world_modulate()
+	if _world_modulate == null:
+		return
+
+	# fade in -> hold -> fade out
+	var tw := create_tween()
+	var red := Color(0.65, 0.22, 0.22, 1)
+
+	_world_modulate.color = Color(1, 1, 1, 1)
+	tw.tween_property(_world_modulate, "color", red, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(2.0)
+	tw.tween_property(_world_modulate, "color", Color(1, 1, 1, 1), 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	
 func _on_boss_died() -> void:
 	if music_boss and music_boss.playing:
 		music_boss.stop()

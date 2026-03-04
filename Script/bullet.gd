@@ -4,75 +4,70 @@ extends Area2D
 @export var life_time: float = 1.2
 @export var damage: int = 1
 
+# Set by player
+var weapon_type: int = 0
+var is_crit: bool = false
+
 var direction: Vector2 = Vector2.RIGHT
 var _life_left: float
-var _prev_pos: Vector2
+
+# Sniper trail
+var _trail: Line2D = null
+var _trail_points: Array[Vector2] = []
+const _TRAIL_MAX_POINTS := 10
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	_life_left = life_time
 	rotation = direction.angle()
-	_prev_pos = global_position
+
+	# Sniper bullet gets a trail
+	# WeaponType enum in player.gd: 0 pistol,1 rifle,2 shotgun,3 sniper
+	if weapon_type == 3:
+		_trail = Line2D.new()
+		_trail.top_level = true
+		_trail.width = 2.5
+		_trail.default_color = Color(1, 1, 1, 0.85)
+		add_child(_trail)
 
 func _physics_process(delta: float) -> void:
-	var new_pos := global_position + direction * speed * delta
+	global_position += direction * speed * delta
 
-	# --- Raycast to prevent tunneling through walls ---
-	var space := get_world_2d().direct_space_state
-	var query := PhysicsRayQueryParameters2D.create(_prev_pos, new_pos)
-	query.collide_with_areas = true
-	query.collide_with_bodies = true
-	query.exclude = [self]
-
-	var result := space.intersect_ray(query)
-
-	if result.size() > 0:
-		var collider: Object = result.get("collider")
-		# Ignore player
-		if collider != null and collider is Node and (collider as Node).is_in_group("player"):
-			global_position = new_pos
-		else:
-			# Snap to hit point and resolve hit
-			global_position = result.get("position")
-			_handle_hit(collider)
-			return
-	else:
-		global_position = new_pos
-
-	_prev_pos = global_position
+	# Update trail
+	if _trail != null:
+		_trail_points.append(global_position)
+		if _trail_points.size() > _TRAIL_MAX_POINTS:
+			_trail_points.pop_front()
+		_trail.clear_points()
+		for p in _trail_points:
+			_trail.add_point(p)
 
 	_life_left -= delta
 	if _life_left <= 0.0:
 		queue_free()
 
-func _handle_hit(collider: Object) -> void:
-	if collider == null:
-		queue_free()
+func _apply_damage(target: Node) -> void:
+	if target == null:
 		return
 
-	if collider is Node:
-		var body := collider as Node
-
-		# Damage enemies (prefer take_damage, fallback to die)
-		if body.has_method("take_damage"):
-			body.call("take_damage", damage)
-		elif body.has_method("die"):
-			body.call("die")
-
-	# Hit wall or anything else -> destroy bullet
-	queue_free()
+	# Prefer take_damage(dmg, is_crit, weapon_type)
+	if target.has_method("take_damage"):
+		# call with 3 args; enemy/boss will accept optional params
+		target.call("take_damage", damage, is_crit, weapon_type)
+	elif target.has_method("die"):
+		target.call("die")
 
 func _on_body_entered(body: Node) -> void:
-	# Still keep this as backup for low-speed collisions
 	if body.is_in_group("player"):
 		return
 
-	if body.has_method("take_damage"):
-		body.call("take_damage", damage)
-		queue_free()
-	elif body.has_method("die"):
-		body.call("die")
-		queue_free()
-	else:
-		# Likely wall/obstacle area
-		queue_free()
+	# In your project, group "enemies" is on Hitbox Area2D sometimes.
+	# If we hit a Hitbox, try parent as real enemy root.
+	var real_target := body
+	if body != null and not body.has_method("take_damage"):
+		var p := body.get_parent()
+		if p != null and p.has_method("take_damage"):
+			real_target = p
+
+	_apply_damage(real_target)
+	queue_free()

@@ -1,113 +1,132 @@
 extends CharacterBody2D
 
-@export var speed_chase: float = 90.0
-@export var max_hp: int = 3
+@export var speed_chase := 90.0
+@export var max_hp: int = 20
 @export var contact_damage: int = 1
-
-# how often to request a new path waypoint from Main
-@export var repath_interval: float = 0.25
-@export var waypoint_reach_dist: float = 10.0
 
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hitbox: Area2D = $Hitbox
 
-var hp: int
 var _player: Node2D
-var _main: Node
-var _repath_cd: float = 0.0
-var _waypoint: Vector2 = Vector2.ZERO
+var hp: int
+
+# hit stop state
+var _hitstop_t: float = 0.0
+var _saved_speed_scale: float = 1.0
 
 signal died
 
 func _ready() -> void:
 	hp = max_hp
-
-	# ---- IMPORTANT: de-share SpriteFrames per instance to avoid override/flicker ----
-	if anim != null and anim.sprite_frames != null:
-		# Duplicate with subresources to ensure each enemy instance has its own frames
-		anim.sprite_frames = anim.sprite_frames.duplicate(true)
-		# Start from a stable animation/frame
-		if anim.sprite_frames.has_animation("idle"):
-			anim.play("idle")
-		elif anim.sprite_frames.has_animation("walk"):
-			anim.play("walk")
-		else:
-			# if user named animations differently, just play the first available
-			var names := anim.sprite_frames.get_animation_names()
-			if names.size() > 0:
-				anim.play(names[0])
-		anim.frame = 0
-
 	_player = get_tree().get_first_node_in_group("player") as Node2D
-	_main = get_tree().current_scene
-
-	if hitbox:
-		hitbox.body_entered.connect(_on_hitbox_body_entered)
+	hitbox.body_entered.connect(_on_hitbox_body_entered)
 
 func _physics_process(delta: float) -> void:
+	# Hit stop: pause only this enemy
+	if _hitstop_t > 0.0:
+		_hitstop_t -= delta
+		velocity = Vector2.ZERO
+		return
+	else:
+		# ensure animation resumes
+		if anim != null:
+			anim.speed_scale = _saved_speed_scale
+
 	if _player == null:
 		_player = get_tree().get_first_node_in_group("player") as Node2D
 		if _player == null:
 			return
 
-	if _main == null:
-		_main = get_tree().current_scene
-
-	_repath_cd -= delta
-
-	# refresh waypoint periodically or when close to current waypoint
-	if _repath_cd <= 0.0 or (_waypoint != Vector2.ZERO and global_position.distance_to(_waypoint) <= waypoint_reach_dist):
-		_repath_cd = repath_interval
-		_waypoint = _get_waypoint()
-
-	var target := _player.global_position
-	if _waypoint != Vector2.ZERO:
-		target = _waypoint
-
-	var dir := target - global_position
-	if dir.length_squared() > 0.001:
-		dir = dir.normalized()
-
+	var dir := (_player.global_position - global_position).normalized()
 	velocity = dir * speed_chase
 	move_and_slide()
 
 	_update_anim()
 
-func _get_waypoint() -> Vector2:
-	if _main != null and _main.has_method("get_next_path_point"):
-		var p = _main.call("get_next_path_point", global_position, _player.global_position)
-		if typeof(p) == TYPE_VECTOR2:
-			return p
-	return Vector2.ZERO
-
 func _update_anim() -> void:
-	if anim == null or anim.sprite_frames == null:
-		return
-
-	var want := "idle"
 	if velocity.length_squared() > 1.0:
-		want = "walk"
-
-	# Only play if the animation exists in this enemy's SpriteFrames
-	if anim.sprite_frames.has_animation(want):
-		if anim.animation != want:
-			anim.play(want)
-
-	# face direction
-	if absf(velocity.x) > 0.01:
-		anim.flip_h = velocity.x < 0.0
+		if anim.animation != "walk":
+			anim.play("walk")
+		if absf(velocity.x) > 0.01:
+			anim.flip_h = velocity.x < 0.0
+	else:
+		if anim.animation != "idle":
+			anim.play("idle")
 
 func _on_hitbox_body_entered(body: Node) -> void:
-	if body != null and body.is_in_group("player"):
+	if body.is_in_group("player"):
 		if body.has_method("take_damage"):
 			body.call("take_damage", contact_damage)
 		else:
 			get_tree().reload_current_scene()
 
-func take_damage(amount: int = 1) -> void:
+func get_hp() -> int:
+	return hp
+
+func take_damage(amount: int = 1, is_crit: bool = false, weapon_type: int = -1) -> void:
 	hp -= max(1, amount)
+
+	# 1) Hit stop
+	_start_hitstop(is_crit, weapon_type)
+
+	# 2) Hit flash
+	_hit_flash()
+
+	# 3) Popup damage (only crit or sniper)
+	if is_crit or weapon_type == 3:
+		_spawn_damage_popup(amount)
+
 	if hp <= 0:
 		die()
+
+func _start_hitstop(is_crit: bool, weapon_type: int) -> void:
+	_saved_speed_scale = 1.0
+	if anim != null:
+		_saved_speed_scale = anim.speed_scale
+		anim.speed_scale = 0.0
+
+	# base 0.04; crit/sniper 0.06
+	_hitstop_t = 0.06 if (is_crit or weapon_type == 3) else 0.04
+
+func _hit_flash() -> void:
+	if anim == null:
+		return
+	# instant brighten -> quickly back
+	anim.modulate = Color(1.8, 1.8, 1.8, 1)
+	var tw := create_tween()
+	tw.tween_property(anim, "modulate", Color(1, 1, 1, 1), 0.09).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+func _spawn_damage_popup(amount: int) -> void:
+	var lbl := Label.new()
+	lbl.top_level = true
+	lbl.z_index = 2000
+	lbl.text = str(amount) + " !" 
+	lbl.modulate = Color(1, 0.25, 0.25, 0.0) # start transparent red
+	lbl.scale = Vector2(0.7, 0.7)
+
+	# place above head
+	var start_pos := global_position + Vector2(0, -28)
+	lbl.global_position = start_pos
+
+	# readable size without custom font
+	var settings := LabelSettings.new()
+	settings.font_size = 22
+	lbl.label_settings = settings
+
+	get_tree().current_scene.add_child(lbl)
+
+	# Animate: fade in + grow + move up, then fade out while moving up
+	var tw := create_tween()
+
+	tw.tween_property(lbl, "modulate", Color(1, 0.25, 0.25, 1.0), 0.10).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(lbl, "scale", Vector2(1.25, 1.25), 0.10).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(lbl, "global_position", start_pos + Vector2(0, -10), 0.10).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+	tw.tween_property(lbl, "modulate", Color(1, 0.25, 0.25, 0.0), 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(lbl, "scale", Vector2(1.0, 1.0), 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(lbl, "global_position", start_pos + Vector2(0, -32), 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+	tw.tween_callback(func(): if is_instance_valid(lbl): lbl.queue_free())
 
 func die() -> void:
 	died.emit()

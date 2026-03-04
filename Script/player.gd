@@ -6,6 +6,7 @@ signal hp_changed(current: int, max_hp: int)
 @export var auto_range: float = 550.0
 
 @export var max_hp: int = 40
+@export var crit_chance_default: float = 0.10
 var hp: int
 
 @export var bullet_scene: PackedScene
@@ -221,6 +222,13 @@ func _play_fire_sfx() -> void:
 	if _weapon_fire_sfx.has(_weapon):
 		sfx_fire.stream = _weapon_fire_sfx[_weapon]
 		sfx_fire.play()
+		# Sniper tail (simple echo-like repeats)
+		if _weapon == WeaponType.SNIPER:
+			var stream := sfx_fire.stream
+			if stream != null:
+				# two quiet delayed replays
+				_play_sniper_tail(stream, 0.12, -10.0, 0.98)
+				_play_sniper_tail(stream, 0.26, -14.0, 0.96)
 
 func _get_weapon_cooldown() -> float:
 	match _weapon:
@@ -366,7 +374,7 @@ func _spawn_bullet(spawn_pos: Vector2, dir: Vector2) -> void:
 	var b := bullet_scene.instantiate()
 	b.direction = dir
 	b.global_position = spawn_pos + dir * bullet_spawn_offset
-
+	
 	# Set bullet sprite per weapon
 	var spr := b.get_node_or_null("Sprite2D") as Sprite2D
 	if spr != null and _bullet_textures.has(_weapon):
@@ -375,7 +383,19 @@ func _spawn_bullet(spawn_pos: Vector2, dir: Vector2) -> void:
 	# Set bullet damage per weapon
 	if _weapon_damage.has(_weapon):
 		b.damage = int(_weapon_damage[_weapon])
+		
+	# Pass weapon type & crit flag to bullet
+	b.weapon_type = _weapon
 
+	var crit := false
+	if _weapon == WeaponType.SNIPER:
+		crit = true # sniper always shows popup
+	else:
+		crit = _rng.randf() < crit_chance_default
+
+	b.is_crit = crit
+	
+	
 	var bullets := get_tree().current_scene.get_node_or_null("World/Bullets") as Node2D
 	if bullets != null:
 		bullets.add_child(b)
@@ -563,3 +583,19 @@ func _ensure_muzzle_flash() -> void:
 	_muzzle_flash.top_level = true
 
 	add_child(_muzzle_flash)
+
+func _play_sniper_tail(stream: AudioStream, delay: float, vol_db: float, pitch: float) -> void:
+	var p := AudioStreamPlayer.new()
+	p.stream = stream
+	p.volume_db = vol_db
+	p.pitch_scale = pitch
+	add_child(p)
+	get_tree().create_timer(delay).timeout.connect(func():
+		if is_instance_valid(p):
+			p.play()
+	)
+	# cleanup later
+	get_tree().create_timer(delay + 1.5).timeout.connect(func():
+		if is_instance_valid(p):
+			p.queue_free()
+	)
