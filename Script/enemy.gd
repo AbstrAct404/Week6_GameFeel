@@ -2,11 +2,12 @@ extends CharacterBody2D
 
 @export var speed_chase := 90.0
 @export var max_hp: int = 20
-@export var contact_damage: int = 1
+@export var contact_damage: int = 5
 
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hitbox: Area2D = $Hitbox
 
+var _last_hit_weapon_type: int = -1
 var _player: Node2D
 var hp: int
 
@@ -64,7 +65,11 @@ func get_hp() -> int:
 	return hp
 
 func take_damage(amount: int = 1, is_crit: bool = false, weapon_type: int = -1) -> void:
+	_last_hit_weapon_type = weapon_type
 	hp -= max(1, amount)
+	if hp <= 0:
+		_on_killed()
+		die()
 
 	# 1) Hit stop
 	_start_hitstop(is_crit, weapon_type)
@@ -76,9 +81,12 @@ func take_damage(amount: int = 1, is_crit: bool = false, weapon_type: int = -1) 
 	if is_crit or weapon_type == 3:
 		_spawn_damage_popup(amount)
 
-	if hp <= 0:
-		die()
-
+func _on_killed() -> void:
+	if _last_hit_weapon_type == 0:
+		var main := get_tree().current_scene
+		if main != null and main.has_method("on_pistol_kill"):
+			main.call("on_pistol_kill")
+			
 func _start_hitstop(is_crit: bool, weapon_type: int) -> void:
 	_saved_speed_scale = 1.0
 	if anim != null:

@@ -1,39 +1,78 @@
 extends Node2D
 
-# Enemy spawning
-@export var enemy_scene: PackedScene
-@export var enemy_scenes: Array[PackedScene] = []
-
-# Boss
-@export var boss_spawn_time: float = 20.0
-@export var boss_warning_time: float = 5.0
-
 @onready var enemies_parent: Node2D = $World/Enemies
 @onready var bosses_parent: Node2D = $World/Bosses
-@onready var spawn_points: Array[Node] = $World/SpawnPoints.get_children()
-
-@onready var player = $World/Player
+@onready var player: Node2D = $World/Player
 @onready var hp_bar: ProgressBar = $UI/HpBar
 
 @onready var music_normal: AudioStreamPlayer = $MusicNormal
 @onready var music_boss: AudioStreamPlayer = $MusicBoss
 
-@onready var wall_layer: TileMapLayer = $World/TM_Wall
+# ---------------- Wave Config ----------------
+const WAVE_DURATION := 30.0
+
+# Total spawns per wave (1..7)
+const WAVE_TOTAL := {
+	1: 30,
+	2: 60,
+	3: 80,
+	4: 100,
+	5: 100,
+	6: 100,
+	7: 100,
+}
+
+# Ratios per wave: [e1,e2,e3,e4] as weights
+const WAVE_RATIO := {
+	1: [100, 0,   0,  0],   # only enemy1
+	2: [80,  20,  0,  0],
+	3: [40,  40,  20, 0],
+	4: [10,  40,  40, 10],
+	5: [10,  30,  40, 20],
+	6: [0,   30,  30, 40],
+	7: [0,   20,  40, 40],
+}
+
+# Enemy multipliers based on Enemy1 baseline
+# Enemy1: default (1.0,1.0,1.0)
+const ENEMY_MULT := {
+	1: {"hp": 1.0, "speed": 1.0, "dmg": 1.0},
+	2: {"hp": 1.5, "speed": 0.8, "dmg": 1.4},
+	3: {"hp": 0.2, "speed": 2.4, "dmg": 1.1},
+	4: {"hp": 1.5, "speed": 1.5, "dmg": 1.5},
+}
+
+# Boss wave rule
+const BOSS_WAVE := 7
+const BOSS_SPAWN_DELAY_IN_WAVE := 20.0
+# --------------------------------------------
 
 var rng := RandomNumberGenerator.new()
 
-# marker -> enemy
-var _corner_enemy := {}
-var _boss: Node2D = null
-var _boss_spawned: bool = false
-var _boss_summon_sfx: AudioStreamPlayer = null
-var _world_modulate: CanvasModulate = null
-var _pressure_timer_running: bool = false
+# Enemy scenes (explicit, so order is stable)
+var enemy_scene_1: PackedScene
+var enemy_scene_2: PackedScene
+var enemy_scene_3: PackedScene
+var enemy_scene_4: PackedScene
 
-# A* grid for enemies
+var _corner_markers: Array[Marker2D] = []
+
+var _wave: int = 0
+var _wave_spawned: int = 0
+var _wave_quota: int = 0
+var _wave_end_t: float = 0.0
+var _spawning: bool = false
+
+var _boss_spawned: bool = false
+var _boss: Node2D = null
+
+# ---- Pathfinding (AStarGrid2D) ----
 var _astar: AStarGrid2D = AStarGrid2D.new()
 var _astar_ready: bool = false
-var _tile_size: Vector2 = Vector2(16, 16)
+var _wall_layer: TileMapLayer = null
+
+@onready var _tm_wall: TileMapLayer = $World/TM_Wall
+# -----------------------------------
 
 func _find_sound_file(prefix: String, exts: Array[String]) -> String:
 	var dir := DirAccess.open("res://Assets/Sound effects")
@@ -72,124 +111,182 @@ func _ready() -> void:
 	if music_boss:
 		music_boss.stop()
 
-	# Boss scheduling
-	_schedule_boss()
+	# Load enemy scenes in a fixed order
+	enemy_scene_1 = preload("res://Scene/Enemy1.tscn")
+	enemy_scene_2 = preload("res://Scene/Enemy2.tscn")
+	enemy_scene_3 = preload("res://Scene/Enemy3.tscn")
+	enemy_scene_4 = preload("res://Scene/Enemy4.tscn")
 
-	# Backward-compatible: if you only set enemy_scene, it still works.
-	if enemy_scenes.is_empty():
-		if enemy_scene == null:
-			push_error("No enemy scenes set! Set Main -> enemy_scenes (preferred) or enemy_scene in Inspector.")
-			return
-		enemy_scenes = [enemy_scene]
+	_corner_markers = _get_corner_spawn_markers()
 
-	# Filter nulls
-	enemy_scenes = enemy_scenes.filter(func(s): return s != null)
-	if enemy_scenes.is_empty():
-		push_error("enemy_scenes is empty after filtering nulls.")
-		return
-
-	_build_astar_grid()
-
-	# Spawn enemies ONLY at 4 corner points (your scene has: ConerTL, CornerTR, CornerBL, CornerBR)
-	var corner_markers := _get_corner_spawn_markers()
-	for m in corner_markers:
-		_spawn_at_corner(m)
-
-	# --- UI HP bar ---
+	# UI HP bar
 	if hp_bar != null and player != null:
 		hp_bar.min_value = 0
 		hp_bar.max_value = player.max_hp
 		hp_bar.value = player.hp
 		if player.has_signal("hp_changed"):
 			player.hp_changed.connect(_on_player_hp_changed)
-	_setup_boss_gamefeel_nodes()
-	
-	_setup_world_modulate()
-	
-func _setup_world_modulate() -> void:
-	_world_modulate = get_node_or_null("WorldModulate") as CanvasModulate
-	if _world_modulate == null:
-		_world_modulate = CanvasModulate.new()
-		_world_modulate.name = "WorldModulate"
-		add_child(_world_modulate)
-	_world_modulate.color = Color(1, 1, 1, 1)
-		
-func _setup_boss_gamefeel_nodes() -> void:
-	# Boss summon SFX
-	_boss_summon_sfx = get_node_or_null("BossSummonSFX") as AudioStreamPlayer
-	if _boss_summon_sfx == null:
-		_boss_summon_sfx = AudioStreamPlayer.new()
-		_boss_summon_sfx.name = "BossSummonSFX"
-		add_child(_boss_summon_sfx)
-	_boss_summon_sfx.stream = load("res://Assets/Sound effects/BossSummon.mp3")
 
-	# Global dim using CanvasModulate (affects whole 2D canvas)
-	_world_modulate = get_node_or_null("WorldModulate") as CanvasModulate
-	if _world_modulate == null:
-		_world_modulate = CanvasModulate.new()
-		_world_modulate.name = "WorldModulate"
-		add_child(_world_modulate)
-	_world_modulate.color = Color(1, 1, 1, 1)
-
+	# Start wave 1 immediately
+	_start_wave(1)
+	_build_astar_grid()
 
 func _get_corner_spawn_markers() -> Array[Marker2D]:
 	var out: Array[Marker2D] = []
-	for node in spawn_points:
-		var m := node as Marker2D
+	var sp := $World/SpawnPoints
+	if sp == null:
+		push_error("World/SpawnPoints not found")
+		return out
+
+	for n in sp.get_children():
+		var m := n as Marker2D
 		if m == null:
 			continue
-		# 注意：你的左上角点拼成了 ConerTL（少了一个 r），这里要兼容
-		if m.name == "ConerTL" or m.name.begins_with("Corner"):
-			# SpawnBoss 也 begins_with("Corner")? 不是，所以不会被选中
-			if m.name == "SpawnBoss":
-				continue
+		# Your project has "ConerTL" typo; keep compatible.
+		if m.name == "ConerTL" or m.name == "CornerTR" or m.name == "CornerBL" or m.name == "CornerBR":
 			out.append(m)
+
+	if out.size() == 0:
+		push_error("No corner markers found under World/SpawnPoints")
 	return out
 
-func _pick_enemy_scene() -> PackedScene:
-	if enemy_scenes.is_empty():
-		return enemy_scene
-	return enemy_scenes[rng.randi_range(0, enemy_scenes.size() - 1)]
+func _physics_process(delta: float) -> void:
+	if not _spawning:
+		return
 
-func _spawn_at_corner(m: Marker2D) -> void:
-	# Prevent double spawn at same marker
-	if _corner_enemy.has(m):
-		var existing: Node = _corner_enemy[m] as Node
-		if is_instance_valid(existing):
-			return
+	_wave_end_t -= delta
+	if _wave_end_t <= 0.0:
+		_end_wave()
+		return
 
-	var packed := _pick_enemy_scene()
+	# Spawn loop is timer-driven, so nothing else here.
+
+func _start_wave(w: int) -> void:
+	_wave = w
+	_wave_spawned = 0
+	_wave_quota = int(WAVE_TOTAL.get(w, 0))
+	_wave_end_t = WAVE_DURATION
+	_spawning = true
+
+	# Wave 7: switch to boss BGM immediately, spawn boss after 20s
+	if _wave == BOSS_WAVE:
+		_switch_to_boss_bgm()
+		get_tree().create_timer(BOSS_SPAWN_DELAY_IN_WAVE).timeout.connect(_spawn_boss)
+
+	# Start spawn timer
+	_schedule_next_spawn()
+
+func _end_wave() -> void:
+	_spawning = false
+
+	if _wave >= 7:
+		return
+
+	_start_wave(_wave + 1)
+
+func _schedule_next_spawn() -> void:
+	if not _spawning:
+		return
+	if _wave_spawned >= _wave_quota:
+		return
+
+	# Spread spawns across the remaining time (roughly uniform, with slight jitter)
+	var remaining := maxf(0.01, _wave_end_t)
+	var remaining_spawns = max(1, _wave_quota - _wave_spawned)
+	var base_interval := remaining / float(remaining_spawns)
+	var jitter := base_interval * 0.25
+	var interval := clampf(base_interval + rng.randf_range(-jitter, jitter), 0.05, 1.2)
+
+	get_tree().create_timer(interval).timeout.connect(func():
+		_spawn_one_enemy_for_wave()
+		_schedule_next_spawn()
+	)
+
+func _spawn_one_enemy_for_wave() -> void:
+	if not _spawning:
+		return
+	if _wave_spawned >= _wave_quota:
+		return
+	if _corner_markers.is_empty():
+		return
+
+	var enemy_idx := _pick_enemy_index_for_wave(_wave) # 1..4
+	var packed := _scene_for_enemy_index(enemy_idx)
 	if packed == null:
-		push_error("Picked enemy scene is null.")
 		return
 
 	var e := packed.instantiate() as Node2D
-	e.global_position = m.global_position
-	enemies_parent.call_deferred("add_child", e)
+	if e == null:
+		return
 
-	_corner_enemy[m] = e
+	# Pick a corner spawn
+	var marker := _corner_markers[rng.randi_range(0, _corner_markers.size() - 1)]
+	e.global_position = marker.global_position
 
-	# Respawn when this enemy dies
-	if e.has_signal("died"):
-		e.connect("died", Callable(self, "_on_enemy_died").bind(m))
-	else:
-		push_error("Enemy scene missing 'died' signal. Add: signal died in enemy.gd")
+	# Apply stats based on Enemy1 baseline
+	_apply_enemy_stats(e, enemy_idx)
 
-func _on_enemy_died(m: Marker2D) -> void:
-	_corner_enemy.erase(m)
-	_spawn_at_corner(m)
+	enemies_parent.add_child(e)
+	_wave_spawned += 1
 
-# ---------------- Boss ----------------
+func _pick_enemy_index_for_wave(w: int) -> int:
+	var weights: Array = WAVE_RATIO.get(w, [100, 0, 0, 0])
+	# weights for [1,2,3,4]
+	var total := 0
+	for x in weights:
+		total += int(x)
+	if total <= 0:
+		return 1
 
-func _schedule_boss() -> void:
-	var warn_delay := maxf(0.0, boss_spawn_time - boss_warning_time)
-	get_tree().create_timer(warn_delay).timeout.connect(_on_boss_warning)
-	get_tree().create_timer(boss_spawn_time).timeout.connect(_spawn_boss)
+	var r := rng.randi_range(1, total)
+	var acc := 0
+	for i in range(4):
+		acc += int(weights[i])
+		if r <= acc:
+			return i + 1
+	return 1
 
-func _on_boss_warning() -> void:
+func _scene_for_enemy_index(i: int) -> PackedScene:
+	match i:
+		1: return enemy_scene_1
+		2: return enemy_scene_2
+		3: return enemy_scene_3
+		4: return enemy_scene_4
+		_: return enemy_scene_1
+
+func _apply_enemy_stats(enemy_node: Node, idx: int) -> void:
+	# Baseline from Enemy1 numbers (hard source: Enemy script exports)
+	# Enemy script fields in your project: speed_chase, max_hp, contact_damage, hp
+	var base_hp := 20
+	var base_speed := 90.0
+	var base_dmg := 4
+
+	# If you later change Enemy1 defaults, update these three to match Enemy1 exports.
+	# (Keeping it explicit avoids having to instantiate a hidden Enemy1.)
+
+	var mult = ENEMY_MULT.get(idx, {"hp": 1.0, "speed": 1.0, "dmg": 1.0})
+	var hp_val := int(ceil(float(base_hp) * float(mult["hp"])))
+	var spd_val := float(base_speed) * float(mult["speed"])
+	var dmg_val := int(ceil(float(base_dmg) * float(mult["dmg"])))
+
+	hp_val = max(1, hp_val)
+	spd_val = max(10.0, spd_val)
+	dmg_val = max(1, dmg_val)
+
+	# Apply to enemy script if fields exist
+	if "max_hp" in enemy_node:
+		enemy_node.max_hp = hp_val
+	if "hp" in enemy_node:
+		enemy_node.hp = hp_val
+	if "speed_chase" in enemy_node:
+		enemy_node.speed_chase = spd_val
+	if "contact_damage" in enemy_node:
+		enemy_node.contact_damage = dmg_val
+
+func _switch_to_boss_bgm() -> void:
 	if music_normal and music_normal.playing:
 		music_normal.stop()
-	if music_boss:
+	if music_boss and not music_boss.playing:
 		music_boss.play()
 
 func _spawn_boss() -> void:
@@ -200,187 +297,120 @@ func _spawn_boss() -> void:
 	var boss_scene: PackedScene = preload("res://Scene/Boss.tscn")
 	_boss = boss_scene.instantiate() as Node2D
 	if _boss == null:
-		push_error("Failed to instantiate Boss.tscn")
 		return
 
-	# Use SpawnBoss marker if exists; fallback to near player
+	# Spawn at SpawnBoss marker if exists; fallback near player
 	var spawn_boss := $World/SpawnPoints.get_node_or_null("SpawnBoss") as Marker2D
-	var pos := Vector2.ZERO
 	if spawn_boss != null:
-		pos = spawn_boss.global_position
+		_boss.global_position = spawn_boss.global_position
+	elif player != null:
+		_boss.global_position = player.global_position + Vector2(180, -60)
 	else:
-		var p := get_tree().get_first_node_in_group("player") as Node2D
-		if p != null:
-			pos = p.global_position + Vector2(180, -60)
+		_boss.global_position = Vector2.ZERO
 
-	# Snap boss position to nearest walkable cell (avoid spawning into wall)
-	pos = _snap_global_to_walkable(pos)
-
-	_boss.global_position = pos
 	bosses_parent.add_child(_boss)
-	_play_boss_red_mask()
-	_play_boss_summon_gamefeel()
-	_start_boss_pressure()
-	
+
 	if _boss.has_signal("died"):
 		_boss.connect("died", Callable(self, "_on_boss_died"))
 
-func _play_boss_red_mask() -> void:
-	if _world_modulate == null:
-		_setup_world_modulate()
-	if _world_modulate == null:
-		return
-
-	# fade in -> hold -> fade out
-	var tw := create_tween()
-	var red := Color(0.65, 0.22, 0.22, 1)
-
-	_world_modulate.color = Color(1, 1, 1, 1)
-	tw.tween_property(_world_modulate, "color", red, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(2.0)
-	tw.tween_property(_world_modulate, "color", Color(1, 1, 1, 1), 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	
 func _on_boss_died() -> void:
+	# optional: return to normal BGM after boss dies
 	if music_boss and music_boss.playing:
 		music_boss.stop()
 	if music_normal:
 		music_normal.play()
-	_pressure_timer_running = false
-	if _world_modulate != null:
-		_world_modulate.color = Color(1, 1, 1, 1)
-# ---------------- UI ----------------
 
 func _on_player_hp_changed(current: int, max_hp: int) -> void:
 	if hp_bar == null:
 		return
 	hp_bar.max_value = max_hp
 	hp_bar.value = current
-
-# ---------------- Pathfinding Service for enemies ----------------
-# Enemy calls: get_next_path_point(enemy_global, player_global) -> Vector2 (world)
-func get_next_path_point(from_global: Vector2, to_global: Vector2) -> Vector2:
-	if not _astar_ready:
-		_build_astar_grid()
-		if not _astar_ready:
-			return Vector2.ZERO
-
-	var from_cell := _global_to_cell(from_global)
-	var to_cell := _global_to_cell(to_global)
-
-	from_cell = _nearest_walkable_cell(from_cell)
-	to_cell = _nearest_walkable_cell(to_cell)
-
-	if from_cell == Vector2i(999999, 999999) or to_cell == Vector2i(999999, 999999):
-		return Vector2.ZERO
-
-	var path: Array[Vector2i] = _astar.get_id_path(from_cell, to_cell)
-	if path.size() < 2:
-		return Vector2.ZERO
-
-	# path[0] is current cell, path[1] is next step
-	return _cell_to_global(path[1])
+	
+func on_pistol_kill() -> void:
+	if player == null:
+		return
+	if "hp" in player and "max_hp" in player:
+		player.hp = min(player.max_hp, player.hp + 1)
+		if player.has_signal("hp_changed"):
+			player.emit_signal("hp_changed", player.hp, player.max_hp)
 
 func _build_astar_grid() -> void:
-	_astar_ready = false
-	if wall_layer == null:
+	_wall_layer = _tm_wall
+	if _wall_layer == null:
+		_astar_ready = false
 		return
 
-	# Try read tile size from tileset, fallback to 16x16
-	if wall_layer.tile_set != null:
-		_tile_size = wall_layer.tile_set.tile_size
-		if _tile_size == Vector2.ZERO:
-			_tile_size = Vector2(16, 16)
-
-	var used_rect: Rect2i = wall_layer.get_used_rect()
-	if used_rect.size == Vector2i.ZERO:
-		# No tiles -> no obstacles
+	# 用 TileMapLayer 的 used rect 来定义寻路网格范围
+	var rect := _wall_layer.get_used_rect()
+	if rect.size == Vector2i.ZERO:
+		# 如果 used_rect 为空，说明 TM_Wall 上没放 tile（或者墙在别的 layer）
+		_astar_ready = false
 		return
 
-	_astar = AStarGrid2D.new()
-	_astar.region = used_rect
-	_astar.cell_size = _tile_size
+	_astar.region = rect
+	_astar.cell_size = Vector2(16, 16) # 你工程 tile 大小一般是 16；如果不是，改成你的 tile size
 	_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
 	_astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
 	_astar.default_estimate_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
 	_astar.update()
 
-	# Mark wall cells as solid
-	var used_cells := wall_layer.get_used_cells()
-	for c in used_cells:
-		_astar.set_point_solid(c, true)
+	# 把墙格子标为不可走
+	var wall_cells := _wall_layer.get_used_cells()
+	for c in wall_cells:
+		# 只标记在 region 内的
+		if rect.has_point(c):
+			_astar.set_point_solid(c, true)
 
 	_astar_ready = true
 
-func _global_to_cell(world_pos: Vector2) -> Vector2i:
-	var local := wall_layer.to_local(world_pos)
-	return wall_layer.local_to_map(local)
+func _global_to_cell(p: Vector2) -> Vector2i:
+	# TileMapLayer 的本地/全局换算：先转到 layer 的本地坐标，再转 cell
+	var local := _wall_layer.to_local(p)
+	return _wall_layer.local_to_map(local)
 
-func _cell_to_global(cell: Vector2i) -> Vector2:
-	var local := wall_layer.map_to_local(cell)
-	return wall_layer.to_global(local)
+func _cell_to_global(c: Vector2i) -> Vector2:
+	# cell -> local -> global，并取 cell 中心点
+	var local := _wall_layer.map_to_local(c)
+	return _wall_layer.to_global(local)
 
-func _nearest_walkable_cell(cell: Vector2i) -> Vector2i:
+func _is_walkable(c: Vector2i) -> bool:
 	if not _astar_ready:
-		return cell
+		return true
+	return not _astar.is_point_solid(c)
 
-	# If inside region and not solid, accept
-	if _astar.region.has_point(cell) and not _astar.is_point_solid(cell):
-		return cell
+func _nearest_walkable_cell(c: Vector2i) -> Vector2i:
+	if _is_walkable(c):
+		return c
 
-	# Search outward for nearest non-solid cell
-	var max_r := 20
+	var max_r := 8
 	for r in range(1, max_r + 1):
 		for dx in range(-r, r + 1):
 			for dy in range(-r, r + 1):
-				var c := cell + Vector2i(dx, dy)
-				if not _astar.region.has_point(c):
+				if abs(dx) != r and abs(dy) != r:
 					continue
-				if not _astar.is_point_solid(c):
-					return c
+				var nc := c + Vector2i(dx, dy)
+				if _is_walkable(nc):
+					return nc
 
-	# Sentinel for failure
 	return Vector2i(999999, 999999)
-
-func _snap_global_to_walkable(world_pos: Vector2) -> Vector2:
+	
+func get_next_path_point(from_world: Vector2, to_world: Vector2) -> Vector2:
+	# Ensure A* is ready (in case scene reload order changes)
 	if not _astar_ready:
-		return world_pos
-	var c := _global_to_cell(world_pos)
-	c = _nearest_walkable_cell(c)
-	if c == Vector2i(999999, 999999):
-		return world_pos
-	return _cell_to_global(c)
+		_build_astar_grid()
+		if not _astar_ready:
+			return to_world
 
-func _play_boss_summon_gamefeel() -> void:
-	# 1) 播放召唤音效
-	if _boss_summon_sfx != null:
-		_boss_summon_sfx.play()
+	var from_cell := _nearest_walkable_cell(_global_to_cell(from_world))
+	var to_cell := _nearest_walkable_cell(_global_to_cell(to_world))
+	if from_cell == Vector2i(999999, 999999) or to_cell == Vector2i(999999, 999999):
+		return to_world
 
-	# 2) 全图强震（用 Player 的 camera shake）
-	if player != null and player.has_method("shake_external"):
-		player.call("shake_external", 10.0, 0.55, Vector2.LEFT) # bias 随便给个方向即可
+	var path: PackedVector2Array = _astar.get_point_path(from_cell, to_cell)
+	# path points are in CELL coordinates
+	if path.size() < 2:
+		return to_world
 
-	# 3) 变暗 -> 5 秒后恢复
-	if _world_modulate != null:
-		_world_modulate.color = Color(0.55, 0.55, 0.55, 1)
-		get_tree().create_timer(5.0).timeout.connect(func():
-			if is_instance_valid(_world_modulate):
-				_world_modulate.color = Color(1, 1, 1, 1)
-		)
-
-func _start_boss_pressure() -> void:
-	if _pressure_timer_running:
-		return
-	_pressure_timer_running = true
-	_pressure_shake_loop()
-
-func _pressure_shake_loop() -> void:
-	if _boss == null or not is_instance_valid(_boss):
-		_pressure_timer_running = false
-		return
-
-	var t := rng.randf_range(3.0, 4.0)
-	get_tree().create_timer(t).timeout.connect(func():
-		if player != null and player.has_method("shake_external"):
-			player.call("shake_external", 1.8, 0.12, Vector2.RIGHT)
-		_pressure_shake_loop()
-	)
+	# Return the NEXT step (index 1), not index 0 (which is current cell)
+	var next_cell := Vector2i(int(path[1].x), int(path[1].y))
+	return _cell_to_global(next_cell)
