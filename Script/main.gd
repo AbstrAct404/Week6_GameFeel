@@ -26,6 +26,9 @@ var rng := RandomNumberGenerator.new()
 var _corner_enemy := {}
 var _boss: Node2D = null
 var _boss_spawned: bool = false
+var _boss_summon_sfx: AudioStreamPlayer = null
+var _world_modulate: CanvasModulate = null
+var _pressure_timer_running: bool = false
 
 # A* grid for enemies
 var _astar: AStarGrid2D = AStarGrid2D.new()
@@ -99,6 +102,25 @@ func _ready() -> void:
 		hp_bar.value = player.hp
 		if player.has_signal("hp_changed"):
 			player.hp_changed.connect(_on_player_hp_changed)
+	_setup_boss_gamefeel_nodes()
+	
+func _setup_boss_gamefeel_nodes() -> void:
+	# Boss summon SFX
+	_boss_summon_sfx = get_node_or_null("BossSummonSFX") as AudioStreamPlayer
+	if _boss_summon_sfx == null:
+		_boss_summon_sfx = AudioStreamPlayer.new()
+		_boss_summon_sfx.name = "BossSummonSFX"
+		add_child(_boss_summon_sfx)
+	_boss_summon_sfx.stream = load("res://Assets/Sound effects/BossSummon.mp3")
+
+	# Global dim using CanvasModulate (affects whole 2D canvas)
+	_world_modulate = get_node_or_null("WorldModulate") as CanvasModulate
+	if _world_modulate == null:
+		_world_modulate = CanvasModulate.new()
+		_world_modulate.name = "WorldModulate"
+		add_child(_world_modulate)
+	_world_modulate.color = Color(1, 1, 1, 1)
+
 
 func _get_corner_spawn_markers() -> Array[Marker2D]:
 	var out: Array[Marker2D] = []
@@ -186,7 +208,9 @@ func _spawn_boss() -> void:
 
 	_boss.global_position = pos
 	bosses_parent.add_child(_boss)
-
+	_play_boss_summon_gamefeel()
+	_start_boss_pressure()
+	
 	if _boss.has_signal("died"):
 		_boss.connect("died", Callable(self, "_on_boss_died"))
 
@@ -195,7 +219,9 @@ func _on_boss_died() -> void:
 		music_boss.stop()
 	if music_normal:
 		music_normal.play()
-
+	_pressure_timer_running = false
+	if _world_modulate != null:
+		_world_modulate.color = Color(1, 1, 1, 1)
 # ---------------- UI ----------------
 
 func _on_player_hp_changed(current: int, max_hp: int) -> void:
@@ -297,3 +323,38 @@ func _snap_global_to_walkable(world_pos: Vector2) -> Vector2:
 	if c == Vector2i(999999, 999999):
 		return world_pos
 	return _cell_to_global(c)
+
+func _play_boss_summon_gamefeel() -> void:
+	# 1) 播放召唤音效
+	if _boss_summon_sfx != null:
+		_boss_summon_sfx.play()
+
+	# 2) 全图强震（用 Player 的 camera shake）
+	if player != null and player.has_method("shake_external"):
+		player.call("shake_external", 10.0, 0.55, Vector2.LEFT) # bias 随便给个方向即可
+
+	# 3) 变暗 -> 5 秒后恢复
+	if _world_modulate != null:
+		_world_modulate.color = Color(0.55, 0.55, 0.55, 1)
+		get_tree().create_timer(5.0).timeout.connect(func():
+			if is_instance_valid(_world_modulate):
+				_world_modulate.color = Color(1, 1, 1, 1)
+		)
+
+func _start_boss_pressure() -> void:
+	if _pressure_timer_running:
+		return
+	_pressure_timer_running = true
+	_pressure_shake_loop()
+
+func _pressure_shake_loop() -> void:
+	if _boss == null or not is_instance_valid(_boss):
+		_pressure_timer_running = false
+		return
+
+	var t := rng.randf_range(3.0, 4.0)
+	get_tree().create_timer(t).timeout.connect(func():
+		if player != null and player.has_method("shake_external"):
+			player.call("shake_external", 1.8, 0.12, Vector2.RIGHT)
+		_pressure_shake_loop()
+	)

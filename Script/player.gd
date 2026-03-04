@@ -26,13 +26,13 @@ var hp: int
 @export var shotgun_spread_degrees: float = 18.0
 
 # ---------------- Game Feel: Camera Shake ----------------
-@export var shake_rifle_strength: float = 2.0
-@export var shake_shotgun_strength: float = 5.0
-@export var shake_sniper_strength: float = 7.0
+@export var shake_rifle_strength: float = 3.0
+@export var shake_shotgun_strength: float = 8.0
+@export var shake_sniper_strength: float = 15.0
 
-@export var shake_rifle_duration: float = 0.05
-@export var shake_shotgun_duration: float = 0.08
-@export var shake_sniper_duration: float = 0.10
+@export var shake_rifle_duration: float = 0.08
+@export var shake_shotgun_duration: float = 0.12
+@export var shake_sniper_duration: float = 0.18
 
 # Optional: small "kick" bias along aim direction (0 = off)
 @export var shake_kick_bias: float = 0.35
@@ -55,6 +55,14 @@ var _weapon_scenes := {
 	WeaponType.SHOTGUN: preload("res://Scene/Weapons/Weapon_Shotgun.tscn"),
 	WeaponType.SNIPER: preload("res://Scene/Weapons/Weapon_Sniper.tscn"),
 }
+
+var _muzzle_flash_tex := {
+	WeaponType.RIFLE: preload("res://Assets/Effects/GunShotRifle.png"),
+	WeaponType.SHOTGUN: preload("res://Assets/Effects/GunShotPistol.png"), # 按你要求 shotgun 用 pistol 的
+	WeaponType.SNIPER: preload("res://Assets/Effects/GunShotSniper.png"),
+}
+var _muzzle_frames_cache := {} # weapon -> SpriteFrames
+var _muzzle_flash: AnimatedSprite2D = null
 
 var _weapon_instance: Node2D = null
 var _weapon_sprite: Sprite2D = null
@@ -94,7 +102,15 @@ var _shake_dur: float = 0.0
 var _shake_strength: float = 0.0
 var _shake_base_offset: Vector2 = Vector2.ZERO
 var _last_aim_dir: Vector2 = Vector2.RIGHT
+# per-weapon muzzle flash offset in LOCAL space (x forward, y down)
+var _muzzle_flash_offset_local := {
+	WeaponType.RIFLE: Vector2(32, 0),
+	# WeaponType.SNIPER: Vector2(14, -2),
+	WeaponType.SHOTGUN: Vector2(-20, 0),
+}
+
 # -----------------------------------
+
 
 func _ready() -> void:
 	_rng.randomize()
@@ -104,10 +120,17 @@ func _ready() -> void:
 	_apply_weapon_visuals()
 
 	# Cache main camera (Main/Camera2D)
-	_cam = get_tree().current_scene.get_node_or_null("Camera2D") as Camera2D
+	# Cache camera (it is a child of the Player instance in Main.tscn: World/Player/Camera2D)
+	_cam = get_node_or_null("Camera2D") as Camera2D
+	if _cam == null:
+		# fallback: active camera from viewport
+		_cam = get_viewport().get_camera_2d()
 	if _cam != null:
 		_shake_base_offset = _cam.offset
-
+		
+	_setup_muzzle_flash_node()
+	
+	
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
@@ -188,7 +211,7 @@ func _physics_process(delta: float) -> void:
 		_play_fire_sfx()
 		_shoot_with_weapon(target.global_position)
 		_apply_weapon_shake() # <<< Game feel
-
+		_play_muzzle_flash()
 	# --- camera shake update ---
 	_update_camera_shake(delta)
 
@@ -426,3 +449,117 @@ func _update_camera_shake(delta: float) -> void:
 
 	_cam.offset = _shake_base_offset + jitter
 # ----------------------------------------------------------------
+
+func shake_external(strength: float, duration: float, bias_dir: Vector2 = Vector2.ZERO) -> void:
+	# allow Main to trigger camera shake (boss summon / pressure)
+	_last_aim_dir = bias_dir.normalized() if bias_dir.length_squared() > 0.0001 else _last_aim_dir
+	_start_shake(strength, duration)
+
+func _setup_muzzle_flash_node() -> void:
+	if muzzle == null:
+		return
+	_muzzle_flash = muzzle.get_node_or_null("MuzzleFlash") as AnimatedSprite2D
+	if _muzzle_flash == null:
+		_muzzle_flash = AnimatedSprite2D.new()
+		_muzzle_flash.name = "MuzzleFlash"
+		_muzzle_flash.visible = false
+		_muzzle_flash.z_index = 100
+
+		# KEY: ignore parent transform to avoid mirrored/offset issues
+		_muzzle_flash.top_level = true
+
+		muzzle.add_child(_muzzle_flash)
+		
+
+func _get_muzzle_frames_for_weapon(w: int) -> SpriteFrames:
+	if _muzzle_frames_cache.has(w):
+		return _muzzle_frames_cache[w]
+
+	if not _muzzle_flash_tex.has(w):
+		return null
+
+	var tex: Texture2D = _muzzle_flash_tex[w]
+	if tex == null:
+		return null
+
+	var frames := SpriteFrames.new()
+	frames.add_animation("flash")
+	frames.set_animation_loop("flash", false)
+	frames.set_animation_speed("flash", 30.0)
+
+	var w_frame := int(tex.get_width() / 6)
+	var h_frame := int(tex.get_height())
+
+	for i in range(6):
+		var at := AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(i * w_frame, 0, w_frame, h_frame)
+		frames.add_frame("flash", at)
+
+	_muzzle_frames_cache[w] = frames
+	return frames
+
+func _play_muzzle_flash() -> void:
+	if _weapon == WeaponType.PISTOL:
+		return
+
+	_ensure_muzzle_flash()
+
+	var frames := _get_muzzle_frames_for_weapon(_weapon) # 你之前那套 6 帧 sprite sheet 构造函数
+	if frames == null:
+		return
+
+	_muzzle_flash.sprite_frames = frames
+	_muzzle_flash.animation = "flash"
+	_muzzle_flash.frame = 0
+	_muzzle_flash.visible = true
+
+	var p := Vector2.ZERO
+	if _weapon_fire_point != null:
+		p = _weapon_fire_point.global_position
+	else:
+		p = muzzle.global_position
+
+	var base := (_weapon_fire_point.global_position if _weapon_fire_point != null else muzzle.global_position)
+
+	# default no offset
+	var off_local := Vector2.ZERO
+	if _muzzle_flash_offset_local.has(_weapon):
+		off_local = _muzzle_flash_offset_local[_weapon]
+
+	# convert local offset to world offset by rotating with muzzle direction
+	var off_world := off_local.rotated(muzzle.global_rotation)
+
+	_muzzle_flash.global_position = base + off_world
+
+	var rot := muzzle.global_rotation
+	if _weapon == WeaponType.SNIPER:
+		rot += deg_to_rad(-45.0)
+	elif _weapon == WeaponType.RIFLE:
+		rot += deg_to_rad(315)
+	elif _weapon == WeaponType.SHOTGUN:
+		rot += deg_to_rad(180)
+	_muzzle_flash.global_rotation = rot
+
+	_muzzle_flash.flip_h = false
+	_muzzle_flash.flip_v = false
+
+	_muzzle_flash.play("flash")
+
+	get_tree().create_timer(0.22).timeout.connect(func():
+		if is_instance_valid(_muzzle_flash):
+			_muzzle_flash.visible = false
+	)
+
+func _ensure_muzzle_flash() -> void:
+	if _muzzle_flash != null and is_instance_valid(_muzzle_flash):
+		return
+
+	_muzzle_flash = AnimatedSprite2D.new()
+	_muzzle_flash.name = "MuzzleFlash"
+	_muzzle_flash.visible = false
+	_muzzle_flash.z_index = 100
+
+	_muzzle_flash.top_level = true
+
+	add_child(_muzzle_flash)
