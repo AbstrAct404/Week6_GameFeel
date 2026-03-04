@@ -8,6 +8,9 @@ extends Node2D
 @onready var music_normal: AudioStreamPlayer = $MusicNormal
 @onready var music_boss: AudioStreamPlayer = $MusicBoss
 
+@onready var weapon_ui = $UI/HUD/WeaponUI
+
+
 # ---------------- Wave Config (max 5 waves) ----------------
 const WAVE_DURATION := 30.0
 
@@ -139,6 +142,33 @@ func _ready() -> void:
 	_build_astar_grid()
 	_setup_screen_effects()
 	_ensure_effect_flags()
+	
+	#weaponUI
+	if weapon_ui != null and player != null:
+		if player.has_signal("weapon_changed"):
+			player.weapon_changed.connect(weapon_ui.set_weapon)
+		if player.has_signal("weapon_cooldown_ratio"):
+			player.weapon_cooldown_ratio.connect(weapon_ui.set_cooldown_ratio)
+	
+	_init_weapon_icons()
+	
+func _init_weapon_icons() -> void:
+	if weapon_ui == null or player == null:
+		return
+
+	var weapon_scenes := {
+		0: preload("res://Scene/Weapons/Weapon_Pistol.tscn"),
+		1: preload("res://Scene/Weapons/Weapon_Rifle.tscn"),
+		2: preload("res://Scene/Weapons/Weapon_Shotgun.tscn"),
+		3: preload("res://Scene/Weapons/Weapon_Sniper.tscn"),
+	}
+
+	for w in weapon_scenes.keys():
+		var inst = weapon_scenes[w].instantiate()
+		var spr := inst.get_node_or_null("Sprite") as Sprite2D
+		if spr != null and spr.texture != null:
+			weapon_ui.set_weapon_icon(w, spr.texture)
+		inst.queue_free()
 
 func _get_corner_spawn_markers() -> Array[Marker2D]:
 	var out: Array[Marker2D] = []

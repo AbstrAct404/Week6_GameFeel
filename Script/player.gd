@@ -1,5 +1,8 @@
 extends CharacterBody2D
 
+signal weapon_changed(new_weapon: int)
+signal weapon_cooldown_ratio(ratio: float)
+
 signal hp_changed(current: int, max_hp: int)
 
 @export var speed: float = 230.0
@@ -141,6 +144,8 @@ func _ready() -> void:
 		_shake_base_offset = _cam.offset
 		
 	_setup_muzzle_flash_node()
+	emit_signal("weapon_changed", _weapon)
+	emit_signal("weapon_cooldown_ratio", 1.0) 
 	
 	
 func _input(event: InputEvent) -> void:
@@ -158,10 +163,15 @@ func _input(event: InputEvent) -> void:
 func set_weapon(w: int) -> void:
 	if w == _weapon:
 		return
+
 	_weapon = w
 	_apply_weapon_visuals()
-	# 0.5s built-in cooldown after switching before can shoot
+
+	emit_signal("weapon_changed", _weapon)
+
 	_cooldown_t = 0.5
+
+	emit_signal("weapon_cooldown_ratio", 1.0)
 
 func take_damage(amount: int = 1) -> void:
 	if _invincible_timer > 0.0:
@@ -238,6 +248,7 @@ func _physics_process(delta: float) -> void:
 
 	# --- shoot on key with cooldown ---
 	_cooldown_t = maxf(_cooldown_t - delta, 0.0)
+	_emit_cooldown_ratio()
 
 	if target != null and Input.is_action_pressed("shoot") and _cooldown_t <= 0.0:
 		_cooldown_t = _get_weapon_cooldown()
@@ -275,6 +286,13 @@ func _get_weapon_cooldown() -> float:
 			return sniper_cooldown * maxf(1.0, sniper_cooldown_mult)
 		_:
 			return pistol_cooldown
+
+func _emit_cooldown_ratio() -> void:
+	var cd := _get_weapon_cooldown()
+	var ratio := 1.0
+	if cd > 0.0:
+		ratio = clamp(1.0 - (_cooldown_t / cd), 0.0, 1.0)
+	emit_signal("weapon_cooldown_ratio", ratio)
 
 func _update_move_anim(move_dir: Vector2) -> void:
 	if move_dir.length_squared() > 0.0:

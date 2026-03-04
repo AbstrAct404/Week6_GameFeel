@@ -282,7 +282,80 @@ position = Vector2(516, 218)
 [node name="SpawnBoss" type="Marker2D" parent="World/SpawnPoints" unique_id=997390866]
 position = Vector2(-76, -182)
 
-[node name="UI" type="CanvasLayer" parent="." unique_id=1355327518]
+[node name="UI" type="CanvasLayer" parent="." unique_id=2057992483]
+
+[node name="HUD" type="Control" parent="UI" unique_id=886244510]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="WeaponUI" type="Control" parent="UI/HUD" unique_id=357906135]
+custom_minimum_size = Vector2(260, 70)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = 1072.0
+offset_right = 1112.0
+offset_bottom = 40.0
+grow_horizontal = 0
+script = ExtResource("4_togfq")
+
+[node name="Panel" type="PanelContainer" parent="UI/HUD/WeaponUI" unique_id=1556215378]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="HBox" type="HBoxContainer" parent="UI/HUD/WeaponUI/Panel" unique_id=929453943]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Slot1" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox" unique_id=1488529402]
+layout_mode = 2
+
+[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot1" unique_id=1534220624]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+stretch_mode = 5
+
+[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot1" unique_id=95660571]
+layout_mode = 2
+
+[node name="Slot2" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox" unique_id=247257944]
+layout_mode = 2
+
+[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot2" unique_id=1111664635]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+stretch_mode = 5
+
+[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot2" unique_id=1244247432]
+layout_mode = 2
+
+[node name="Slot3" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox" unique_id=829333265]
+layout_mode = 2
+
+[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot3" unique_id=1292081036]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+stretch_mode = 5
+
+[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot3" unique_id=1097353151]
+layout_mode = 2
+
+[node name="Slot4" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox" unique_id=1854878082]
+layout_mode = 2
+
+[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot4" unique_id=659652397]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+stretch_mode = 5
+
+[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot4" unique_id=118567335]
+layout_mode = 2
 
 [node name="HpBar" type="ProgressBar" parent="UI" unique_id=1729384790]
 offset_right = 300.0
