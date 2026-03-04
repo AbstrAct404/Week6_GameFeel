@@ -17,9 +17,26 @@ var hp: int
 @export var shotgun_cooldown: float = 0.75
 @export var sniper_cooldown: float = 1.10
 
+# NEW: cooldown multipliers (extend shotgun/sniper)
+@export var shotgun_cooldown_mult: float = 1.35
+@export var sniper_cooldown_mult: float = 1.45
+
 # Shotgun spread
 @export var shotgun_pellets: int = 5
 @export var shotgun_spread_degrees: float = 18.0
+
+# ---------------- Game Feel: Camera Shake ----------------
+@export var shake_rifle_strength: float = 2.0
+@export var shake_shotgun_strength: float = 5.0
+@export var shake_sniper_strength: float = 7.0
+
+@export var shake_rifle_duration: float = 0.05
+@export var shake_shotgun_duration: float = 0.08
+@export var shake_sniper_duration: float = 0.10
+
+# Optional: small "kick" bias along aim direction (0 = off)
+@export var shake_kick_bias: float = 0.35
+# --------------------------------------------------------
 
 @onready var anim: AnimatedSprite2D = $Sprite
 @onready var muzzle: Node2D = $MuzzlePivot
@@ -46,7 +63,7 @@ var _weapon_fire_point: Node2D = null
 # NOTE: user requested sniper/shotgun bullet swap already applied.
 var _bullet_textures := {
 	WeaponType.PISTOL: preload("res://Assets/Weapons/Extras/bullet.png"),
-	WeaponType.RIFLE: preload("res://Assets/Weapons/Extras/rifle_bullet.png"),	
+	WeaponType.RIFLE: preload("res://Assets/Weapons/Extras/rifle_bullet.png"),
 	WeaponType.SHOTGUN: preload("res://Assets/Weapons/Extras/sniper_bullet.png"),
 	WeaponType.SNIPER: preload("res://Assets/Weapons/Extras/shotgun_bullet.png"),
 }
@@ -69,10 +86,27 @@ var _weapon_fire_sfx := {
 
 var _hit_sfx: AudioStream = preload("res://Assets/Sound effects/PlayerGetHit.mp3")
 
+# ---- Camera shake runtime state ----
+var _rng := RandomNumberGenerator.new()
+var _cam: Camera2D = null
+var _shake_t: float = 0.0
+var _shake_dur: float = 0.0
+var _shake_strength: float = 0.0
+var _shake_base_offset: Vector2 = Vector2.ZERO
+var _last_aim_dir: Vector2 = Vector2.RIGHT
+# -----------------------------------
+
 func _ready() -> void:
+	_rng.randomize()
+
 	hp = max_hp
 	emit_signal("hp_changed", hp, max_hp)
 	_apply_weapon_visuals()
+
+	# Cache main camera (Main/Camera2D)
+	_cam = get_tree().current_scene.get_node_or_null("Camera2D") as Camera2D
+	if _cam != null:
+		_shake_base_offset = _cam.offset
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -153,6 +187,10 @@ func _physics_process(delta: float) -> void:
 		_cooldown_t = _get_weapon_cooldown()
 		_play_fire_sfx()
 		_shoot_with_weapon(target.global_position)
+		_apply_weapon_shake() # <<< Game feel
+
+	# --- camera shake update ---
+	_update_camera_shake(delta)
 
 func _play_fire_sfx() -> void:
 	if sfx_fire == null:
@@ -166,9 +204,9 @@ func _get_weapon_cooldown() -> float:
 		WeaponType.RIFLE:
 			return rifle_cooldown
 		WeaponType.SHOTGUN:
-			return shotgun_cooldown
+			return shotgun_cooldown * maxf(1.0, shotgun_cooldown_mult)
 		WeaponType.SNIPER:
-			return sniper_cooldown
+			return sniper_cooldown * maxf(1.0, sniper_cooldown_mult)
 		_:
 			return pistol_cooldown
 
@@ -226,7 +264,6 @@ func find_closest_enemy() -> Node2D:
 	return best
 
 func _world_to_screen(pos: Vector2) -> Vector2:
-	# Canvas transform maps world->screen for 2D nodes.
 	return get_viewport().get_canvas_transform() * pos
 
 func _is_in_view(pos: Vector2) -> bool:
@@ -269,6 +306,7 @@ func shoot_single(target_pos: Vector2) -> void:
 	if dir_vec.length_squared() < 0.0001:
 		return
 	var dir := dir_vec.normalized()
+	_last_aim_dir = dir
 	_spawn_bullet(spawn_pos, dir)
 
 func shoot_shotgun(target_pos: Vector2) -> void:
@@ -278,6 +316,7 @@ func shoot_shotgun(target_pos: Vector2) -> void:
 		return
 
 	var base_dir := dir_vec.normalized()
+	_last_aim_dir = base_dir
 	var base_ang := base_dir.angle()
 
 	var pellets = max(1, shotgun_pellets)
@@ -325,13 +364,12 @@ func _aim_at(target_pos: Vector2) -> void:
 	if dir.length_squared() < 0.0001:
 		return
 
-	# Weapon sprites are authored facing 3 o'clock (Vector2.RIGHT).
-	# When aiming to the left side of the player (clock 6 -> 12, i.e. dir.x < 0),
-	# we mirror the weapon and keep the rotation in a visually "upright" range.
+	_last_aim_dir = dir.normalized()
+
 	var ang := dir.angle()
 
 	if dir.x < 0.0:
-		muzzle.rotation = ang 
+		muzzle.rotation = ang
 		if _weapon_sprite:
 			_weapon_sprite.flip_v = true
 	else:
@@ -339,6 +377,52 @@ func _aim_at(target_pos: Vector2) -> void:
 		if _weapon_sprite:
 			_weapon_sprite.flip_v = false
 
-	# Avoid double-flipping: keep horizontal flip off and use vertical mirror only.
 	if _weapon_sprite:
 		_weapon_sprite.flip_h = false
+
+# ---------------- Game Feel: Shake implementation ----------------
+func _apply_weapon_shake() -> void:
+	match _weapon:
+		WeaponType.RIFLE:
+			_start_shake(shake_rifle_strength, shake_rifle_duration)
+		WeaponType.SHOTGUN:
+			_start_shake(shake_shotgun_strength, shake_shotgun_duration)
+		WeaponType.SNIPER:
+			_start_shake(shake_sniper_strength, shake_sniper_duration)
+		_:
+			# pistol tiny shake (optional). If you want none, set strength to 0 in inspector.
+			_start_shake(1.0, 0.04)
+
+func _start_shake(strength: float, duration: float) -> void:
+	if _cam == null:
+		_cam = get_tree().current_scene.get_node_or_null("Camera2D") as Camera2D
+		if _cam == null:
+			return
+		_shake_base_offset = _cam.offset
+
+	_shake_strength = maxf(0.0, strength)
+	_shake_dur = maxf(0.0, duration)
+	_shake_t = _shake_dur
+
+func _update_camera_shake(delta: float) -> void:
+	if _cam == null:
+		return
+	if _shake_t <= 0.0 or _shake_dur <= 0.0 or _shake_strength <= 0.0:
+		_cam.offset = _shake_base_offset
+		return
+
+	_shake_t = maxf(0.0, _shake_t - delta)
+	var k := _shake_t / _shake_dur  # decay 1 -> 0
+
+	# random jitter
+	var jitter := Vector2(
+		_rng.randf_range(-1.0, 1.0),
+		_rng.randf_range(-1.0, 1.0)
+	) * (_shake_strength * k)
+
+	# small kick bias opposite aim direction (feel like recoil)
+	if shake_kick_bias > 0.0:
+		jitter += (-_last_aim_dir) * (_shake_strength * k * shake_kick_bias)
+
+	_cam.offset = _shake_base_offset + jitter
+# ----------------------------------------------------------------

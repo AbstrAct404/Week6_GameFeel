@@ -1,24 +1,76 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://y1ad7u5iavto"]
 
-[ext_resource type="Script" path="res://Script/boss.gd" id="1_boss"]
+[ext_resource type="Script" uid="uid://da52gitne45ic" path="res://Script/boss.gd" id="1_boss"]
+[ext_resource type="Texture2D" uid="uid://bhk05ojyxl0cl" path="res://Assets/Enemies/demon-Files/Spritesheets/demon-idle.png" id="2_jvlwu"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_1"]
-radius = 18.0
+radius = 42.107006
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8d3wq"]
+atlas = ExtResource("2_jvlwu")
+region = Rect2(0, 0, 160, 144)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mnaro"]
+atlas = ExtResource("2_jvlwu")
+region = Rect2(160, 0, 160, 144)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r1oju"]
+atlas = ExtResource("2_jvlwu")
+region = Rect2(320, 0, 160, 144)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hgrf2"]
+atlas = ExtResource("2_jvlwu")
+region = Rect2(480, 0, 160, 144)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qkbu3"]
+atlas = ExtResource("2_jvlwu")
+region = Rect2(640, 0, 160, 144)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_m8uwm"]
+atlas = ExtResource("2_jvlwu")
+region = Rect2(800, 0, 160, 144)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_acfdl"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8d3wq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mnaro")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_r1oju")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hgrf2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qkbu3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_m8uwm")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_2"]
-radius = 22.0
+radius = 38.013157
 
-[node name="Boss" type="CharacterBody2D"]
+[node name="Boss" type="CharacterBody2D" unique_id=484134484]
 script = ExtResource("1_boss")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=140762742]
 shape = SubResource("CircleShape2D_1")
 
-[node name="Body" type="Polygon2D" parent="."]
-polygon = PackedVector2Array(0, -24, 17, -17, 24, 0, 17, 17, 0, 24, -17, 17, -24, 0, -17, -17)
-color = Color(0.8, 0.1, 0.1, 1)
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1112077792]
+position = Vector2(13, -8)
+sprite_frames = SubResource("SpriteFrames_acfdl")
+frame_progress = 0.7407722
 
-[node name="Hitbox" type="Area2D" parent="." groups=["enemies"]]
+[node name="Hitbox" type="Area2D" parent="." unique_id=2108958995 groups=["enemies"]]
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox" unique_id=1353674540]
 shape = SubResource("CircleShape2D_2")
