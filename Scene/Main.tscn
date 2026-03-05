@@ -1,9 +1,10 @@
-[gd_scene load_steps=8 format=4 uid="uid://blymur0jwt46f"]
+[gd_scene load_steps=9 format=4 uid="uid://blymur0jwt46f"]
 
 [ext_resource type="PackedScene" uid="uid://d4l2gova8uur1" path="res://Scene/Player.tscn" id="1_g6ejq"]
 [ext_resource type="Script" uid="uid://dedmujgpg2sk0" path="res://Script/main.gd" id="1_h175a"]
 [ext_resource type="PackedScene" uid="uid://dknvac6vetwvf" path="res://Scene/tm_floor.tscn" id="2_h175a"]
 [ext_resource type="Texture2D" uid="uid://b8wqqkbxjfl71" path="res://Assets/Dungeon_Tileset.png" id="4_h175a"]
+[ext_resource type="Script" uid="uid://hdm6wu35vuvj" path="res://Script/ui.gd" id="5_aan6j"]
 [ext_resource type="Script" path="res://Script/weapon_ui.gd" id="5_weaponui"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_h175a"]
@@ -176,6 +177,7 @@ position = Vector2(516, 218)
 position = Vector2(-76, -182)
 
 [node name="UI" type="CanvasLayer" parent="."]
+script = ExtResource("5_aan6j")
 
 [node name="HUD" type="Control" parent="UI"]
 layout_mode = 3

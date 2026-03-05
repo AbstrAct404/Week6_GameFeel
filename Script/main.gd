@@ -10,6 +10,9 @@ extends Node2D
 
 @onready var weapon_ui = $UI/HUD/WeaponUI
 
+@onready var ui: UI = $UI
+
+
 
 # ---------------- Wave Config (max 5 waves) ----------------
 const WAVE_DURATION := 30.0

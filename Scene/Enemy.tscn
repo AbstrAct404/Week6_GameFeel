@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bvkq7soo4idjf"]
+[gd_scene load_steps=19 format=3 uid="uid://bvkq7soo4idjf"]
 
 [ext_resource type="Script" uid="uid://clntocwu86dx5" path="res://Script/enemy.gd" id="1_nc1xg"]
 [ext_resource type="Texture2D" uid="uid://cxpj4ugp34fqf" path="res://Assets/Enemies/Enemy 1/idle_0.png" id="2_wdj7b"]
@@ -79,20 +79,20 @@ animations = [{
 radius = 7.0
 height = 20.0
 
-[node name="Enemy" type="CharacterBody2D" unique_id=1353919629]
+[node name="Enemy" type="CharacterBody2D"]
 script = ExtResource("1_nc1xg")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1775178569]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 scale = Vector2(2, 2)
 shape = SubResource("CapsuleShape2D_x27fm")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=631330214]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 position = Vector2(0, -11.999999)
 scale = Vector2(0.03, 0.03)
 sprite_frames = SubResource("SpriteFrames_oisqu")
 animation = &"idle"
 
-[node name="Hitbox" type="Area2D" parent="." unique_id=131151220 groups=["enemies"]]
+[node name="Hitbox" type="Area2D" parent="." groups=["enemies"]]
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox" unique_id=1483192931]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
 shape = SubResource("CapsuleShape2D_3lkhy")

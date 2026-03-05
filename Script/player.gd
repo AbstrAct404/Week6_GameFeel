@@ -186,7 +186,8 @@ func take_damage(amount: int = 1) -> void:
 		sfx_hit.stream = _hit_sfx
 		sfx_hit.play()
 	if hp <= 0:
-		get_tree().reload_current_scene()
+		Global.set_lost()
+		get_tree().change_scene_to_file("res://Scene/GameOver.tscn")
 
 func is_invincible() -> bool:
 	return _invincible_timer > 0.0

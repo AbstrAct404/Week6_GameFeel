@@ -6,6 +6,8 @@ extends CharacterBody2D
 @onready var hitbox: Area2D = $Hitbox
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
 
+@export var game_over_scene: String = "res://Scene/GameOver.tscn"
+
 var _player: Node2D
 var hp: int
 # Speed = player speed - 10 normally; when HP <= 50%, player default speed. Then multiplied by (1 - slow).
@@ -195,6 +197,14 @@ func _spawn_damage_popup(amount: int, is_crit: bool = false) -> void:
 
 	get_tree().create_timer(0.45).timeout.connect(func(): if is_instance_valid(lbl): lbl.queue_free())
 
+func _go_game_over(won: bool) -> void:
+	if won:
+		Global.set_win()
+	else:
+		Global.set_lost()
+	get_tree().change_scene_to_file(game_over_scene)
+	
 func die() -> void:
 	died.emit()
+	_go_game_over(true)
 	queue_free()
