@@ -60,6 +60,8 @@ animations = [{
 radius = 38.013157
 
 [node name="Boss" type="CharacterBody2D" unique_id=484134484]
+collision_layer = 0
+collision_mask = 0
 script = ExtResource("1_boss")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=140762742]

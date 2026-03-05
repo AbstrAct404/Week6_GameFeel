@@ -1,7 +1,7 @@
 extends CharacterBody2D
 
-@export var max_hp: int = 1200
-@export var contact_damage: int = 15  # damage per 20 frames while player in range
+@export var max_hp: int = 1400
+@export var contact_damage: int = 10  # damage per 20 frames while player in range
 
 @onready var hitbox: Area2D = $Hitbox
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
@@ -16,7 +16,7 @@ var _hitstop_t: float = 0.0
 var _saved_speed_scale: float = 1.0
 var _contact_dmg_frames: int = 0  # deal contact_damage per 20 frames while overlapping
 
-# Teleport: when HP drops below 80%, 60%, 40%, 20%, 10%, 5% of max_hp (each triggers once), ~250 units ahead of player
+# Teleport: when HP drops below 80%, 60%, 40%, 20%, 10% of max_hp (each triggers once), ~250 units ahead of player
 const TELEPORT_HP_THRESHOLDS: Array[float] = [0.80, 0.60, 0.40, 0.20, 0.10, 0.05]
 var _next_teleport_threshold_idx: int = 0
 const TELEPORT_DISTANCE: float = 250.0
@@ -30,10 +30,6 @@ func _ready() -> void:
 	if hitbox:
 		hitbox.collision_mask = 1  # layer 1 = player
 		hitbox.monitoring = true
-
-	# Boss ignores wall/enemy collisions (body only)
-	collision_layer = 0
-	collision_mask = 0
 
 	# ensure boss anim plays
 	if anim != null and anim.sprite_frames != null:
