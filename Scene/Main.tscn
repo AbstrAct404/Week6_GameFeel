@@ -1,4 +1,4 @@
-[gd_scene format=4 uid="uid://blymur0jwt46f"]
+[gd_scene load_steps=8 format=4 uid="uid://blymur0jwt46f"]
 
 [ext_resource type="PackedScene" uid="uid://d4l2gova8uur1" path="res://Scene/Player.tscn" id="1_g6ejq"]
 [ext_resource type="Script" uid="uid://dedmujgpg2sk0" path="res://Script/main.gd" id="1_h175a"]
@@ -131,53 +131,53 @@ texture = ExtResource("4_h175a")
 physics_layer_0/collision_layer = 1
 sources/0 = SubResource("TileSetAtlasSource_h175a")
 
-[node name="Main" type="Node2D" unique_id=1372691447]
+[node name="Main" type="Node2D"]
 script = ExtResource("1_h175a")
 
-[node name="MusicNormal" type="AudioStreamPlayer" parent="." unique_id=400000001]
+[node name="MusicNormal" type="AudioStreamPlayer" parent="."]
 volume_db = -6.0
 
-[node name="MusicBoss" type="AudioStreamPlayer" parent="." unique_id=400000002]
+[node name="MusicBoss" type="AudioStreamPlayer" parent="."]
 
-[node name="World" type="Node2D" parent="." unique_id=666175470]
+[node name="World" type="Node2D" parent="."]
 
-[node name="TM_Floor" parent="World" unique_id=1036434747 instance=ExtResource("2_h175a")]
+[node name="TM_Floor" parent="World" instance=ExtResource("2_h175a")]
 
-[node name="TM_Wall" type="TileMapLayer" parent="World" unique_id=1924758514]
+[node name="TM_Wall" type="TileMapLayer" parent="World"]
 tile_map_data = PackedByteArray("AADc/+z/AAAAAAAAAADc/+3/AAAAAAEAAADc/+7/AAAAAAIAAADc/+//AAAAAAMAAADc//D/AAAAAAAAAADc//H/AAAAAAEAAADc//L/AAAAAAIAAADc//P/AAAAAAMAAADc//T/AAAAAAAAAADc//X/AAAAAAEAAADc//b/AAAAAAIAAADc//f/AAAAAAMAAADc//j/AAAAAAAAAADc//n/AAAAAAEAAADc//r/AAAAAAIAAADc//v/AAAAAAMAAADc//z/AAAAAAAAAADc//3/AAAAAAEAAADc//7/AAAAAAIAAADc////AAAAAAMAAADc/wAAAAAAAAAAAADc/wEAAAAAAAEAAADc/wIAAAAAAAIAAADc/wMAAAAAAAMAAADc/wQAAAAAAAAAAADc/wUAAAAAAAEAAADc/wYAAAAAAAIAAADc/wcAAAAAAAMAAADc/wgAAAAAAAAAAADc/wkAAAAAAAEAAADc/woAAAAAAAIAAADc/wsAAAAAAAMAAADc/wwAAAAAAAAAAADc/w0AAAAAAAEAAADc/w4AAAAAAAIAAADc/w8AAAAAAAMAAADc/xAAAAAAAAAAAADc/xEAAAAAAAEAAADc/xIAAAAAAAIAAADc/xMAAAAAAAMAAADc/xQAAAAAAAQAAADd/xQAAAABAAQAAADe/xQAAAABAAQAAADf/xQAAAACAAQAAADg/xQAAAADAAQAAADh/xQAAAAEAAQAAADi/xQAAAABAAQAAADj/xQAAAACAAQAAADk/xQAAAADAAQAAADl/xQAAAAEAAQAAADm/xQAAAABAAQAAADn/xQAAAACAAQAAADo/xQAAAADAAQAAADp/xQAAAAEAAQAAADq/xQAAAABAAQAAADr/xQAAAACAAQAAADs/xQAAAADAAQAAADt/xQAAAAEAAQAAADu/xQAAAABAAQAAADv/xQAAAACAAQAAADw/xQAAAADAAQAAADx/xQAAAAEAAQAAADy/xQAAAABAAQAAADz/xQAAAACAAQAAAD0/xQAAAADAAQAAAD1/xQAAAAEAAQAAAD2/xQAAAABAAQAAAD3/xQAAAACAAQAAAD4/xQAAAADAAQAAAD5/xQAAAAEAAQAAAD6/xQAAAABAAQAAAD7/xQAAAACAAQAAAD8/xQAAAADAAQAAAD9/xQAAAAEAAQAAAD+/xQAAAABAAQA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AADm/wQAAAAAAAMAAADm/wUAAAAAAAMAAADm/wYAAAAAAAEAAADm/wcAAAAAAAIAAADm/wgAAAAAAAMAAADm/wkAAAAAAAMAAADm/woAAAAAAAAAAADm/wsAAAAAAAEAAADm/wwAAAAAAAIAAADm/w0AAAAAAAMAAADm/w4AAAAAAAMAAADm/w8AAAAAAAAAAADm/xAAAAAAAAEAAADm/wAAAAAAAAAAAADn////AAABAAAAAADo////AAACAAAAAADp////AAADAAAAAADq////AAAEAAAAAADr////AAABAAAAAADs////AAACAAAAAADt////AAADAAAAAADu////AAAEAAAAAADv////AAABAAAAAADw////AAACAAAAAADx////AAADAAAAAADy////AAAEAAAAAADz////AAABAAAAAAD0////AAACAAAAAAD1////AAADAAAAAAD2////AAAEAAAAAAD3////AAABAAAAAAD4////AAACAAAAAAD5////AAADAAAAAAD6////AAAEAAAAAAD7////AAABAAAAAAD8////AAACAAAAAAD9////AAADAAAAAAD+////AAAEAAAAAAD/////AAABAAAAAADm////AAAAAAAAAADs/wUAAAAAAAAAAADs/wYAAAAAAAEAAADs/wcAAAAAAAIAAADs/wgAAAAAAAMAAADs/wkAAAAAAAAAAADs/woAAAAAAAEAAADs/wsAAAAAAAIAAADs/wwAAAAAAAMAAADs/w0AAAAAAAAAAADs/w4AAAAAAAEAAADs/w8AAAAAAAIAAADt/wUAAAABAAAAAADu/wUAAAACAAAAAADv/wUAAAADAAAAAADw/wUAAAAEAAAAAADx/wUAAAABAAAAAADy/wUAAAACAAAAAADz/wUAAAADAAAAAAD0/wUAAAAEAAAAAAD1/wUAAAABAAAAAAD2/wUAAAACAAAAAAD3/wUAAAADAAAAAAD4/wUAAAAEAAAAAAD5/wUAAAABAAAAAAD6/wUAAAACAAAAAAD7/wUAAAADAAAAAAD8/wUAAAAEAAAAAAD9/wUAAAABAAAAAAD+/wUAAAACAAAAAAD//wUAAAADAAAAAADt/xAAAAABAAQAAADu/xAAAAACAAQAAADv/xAAAAADAAQAAADw/xAAAAAEAAQAAADx/xAAAAABAAQAAADy/xAAAAACAAQAAADz/xAAAAADAAQAAAD0/xAAAAAEAAQAAAD1/xAAAAABAAQAAAD2/xAAAAACAAQAAAD3/xAAAAADAAQAAAD4/xAAAAAEAAQAAAD5/xAAAAABAAQAAAD6/xAAAAACAAQAAAD7/xAAAAADAAQAAAD8/xAAAAAEAAQAAAD9/xAAAAABAAQAAAD+/xAAAAACAAQAAAD//xAAAAADAAQAAAD2/wkAAAAFAAIAAAD2/woAAAAFAAMAAAD2/wsAAAAFAAEAAAD2/wwAAAAFAAIAAADs/xAAAAAAAAQAAAAYAPb/AAAAAAAAAAAYAPf/AAAAAAEAAAAYAPj/AAAAAAIAAAAYAPn/AAAAAAMAAAAYAPr/AAAAAAAAAAAYAPv/AAAAAAEAAAAYAPz/AAAAAAIAAAAYAP3/AAAAAAMAAAAYAP7/AAAAAAAAAAAYAP//AAAAAAEAAAAYAAAAAAAAAAIAAAAYAAEAAAAAAAMAAAAYAAIAAAAAAAAAAAAYAAMAAAAAAAEAAAAaAPb/AAAAAAAAAAAaAPf/AAAAAAEAAAAaAPj/AAAAAAIAAAAaAPn/AAAAAAMAAAAaAPr/AAAAAAAAAAAaAPv/AAAAAAEAAAAaAPz/AAAAAAIAAAAaAP3/AAAAAAMAAAAaAP7/AAAAAAAAAAAaAP//AAAAAAEAAAAaAAAAAAAAAAIAAAAaAAEAAAAAAAMAAAAaAAIAAAAAAAAAAAAaAAMAAAAAAAEAAAANAAYAAAABAAAAAAAOAAYAAAACAAAAAAAPAAYAAAADAAAAAAAQAAYAAAAEAAAAAAARAAYAAAABAAAAAAASAAYAAAACAAAAAAATAAYAAAADAAAAAAAUAAYAAAAEAAAAAAAVAAYAAAABAAAAAAAWAAYAAAACAAAAAAAXAAYAAAADAAAAAAAYAAYAAAAEAAAAAAAZAAYAAAABAAAAAAAaAAYAAAACAAAAAAAbAAYAAAADAAAAAAAcAAYAAAAEAAAAAAAdAAYAAAABAAAAAAAeAAYAAAACAAAAAAAfAAYAAAADAAAAAAAgAAYAAAAEAAAAAAAhAAYAAAABAAAAAAAiAAYAAAACAAAAAADs//H/AAABAAAAAADt//H/AAACAAAAAADu//H/AAADAAAAAADv//H/AAAEAAAAAADw//H/AAABAAAAAADx//H/AAACAAAAAADy//H/AAADAAAAAADz//H/AAAEAAAAAAD0//H/AAABAAAAAAD1//H/AAACAAAAAAD2//H/AAADAAAAAAD3//H/AAAEAAAAAAD4//H/AAABAAAAAAD5//H/AAACAAAAAAD6//H/AAADAAAAAAD7//H/AAAEAAAAAAD8//H/AAABAAAAAADs//j/AAABAAQAAADt//j/AAACAAQAAADu//j/AAADAAQAAADv//j/AAAEAAQAAADw//j/AAABAAQAAADx//j/AAACAAQAAADy//j/AAADAAQAAADz//j/AAAEAAQAAAD0//j/AAABAAQAAAD1//j/AAACAAQAAAD2//j/AAADAAQAAAD3//j/AAAEAAQAAAD4//j/AAABAAQAAAD5//j/AAACAAQAAAD6//j/AAADAAQAAAD7//j/AAAEAAQAAAD8//j/AAABAAQAAAD9//H/AAAFAAIAAAD9//L/AAAFAAIAAAD9//P/AAAFAAIAAAD9//T/AAAFAAIAAAD9//X/AAAFAAIAAAD9//b/AAAFAAIAAAD9//f/AAAFAAIAAAD9//j/AAAFAAQAAAARAO3/AAAAAAEAAAARAO7/AAAAAAIAAAARAO//AAAAAAMAAAARAPD/AAAAAAEAAAARAPH/AAAAAAIAAAARAPL/AAAAAAMAAAARAPP/AAAAAAEAAAARAPT/AAAAAAIAAAARAPX/AAAAAAMAAAARAPb/AAAAAAEAAAARAPf/AAAAAAIAAAA=")
 tile_set = SubResource("TileSet_togfq")
 
-[node name="Player" parent="World" unique_id=2068984448 instance=ExtResource("1_g6ejq")]
+[node name="Player" parent="World" instance=ExtResource("1_g6ejq")]
 
-[node name="Camera2D" type="Camera2D" parent="World/Player" unique_id=1374069209]
+[node name="Camera2D" type="Camera2D" parent="World/Player"]
 zoom = Vector2(2, 2)
 
-[node name="Bullets" type="Node2D" parent="World" unique_id=1802642986]
+[node name="Bullets" type="Node2D" parent="World"]
 
-[node name="Enemies" type="Node2D" parent="World" unique_id=2016524678]
+[node name="Enemies" type="Node2D" parent="World"]
 
-[node name="Bosses" type="Node2D" parent="World" unique_id=2016524679]
+[node name="Bosses" type="Node2D" parent="World"]
 
-[node name="SpawnPoints" type="Node2D" parent="World" unique_id=987550158]
+[node name="SpawnPoints" type="Node2D" parent="World"]
 
-[node name="ConerTL" type="Marker2D" parent="World/SpawnPoints" unique_id=282692332]
+[node name="ConerTL" type="Marker2D" parent="World/SpawnPoints"]
 position = Vector2(-76, -182)
 
-[node name="CornerTR" type="Marker2D" parent="World/SpawnPoints" unique_id=575012411]
+[node name="CornerTR" type="Marker2D" parent="World/SpawnPoints"]
 position = Vector2(503, -234)
 
-[node name="CornerBL" type="Marker2D" parent="World/SpawnPoints" unique_id=1547996496]
+[node name="CornerBL" type="Marker2D" parent="World/SpawnPoints"]
 position = Vector2(-493, 199)
 
-[node name="CornerBR" type="Marker2D" parent="World/SpawnPoints" unique_id=610172506]
+[node name="CornerBR" type="Marker2D" parent="World/SpawnPoints"]
 position = Vector2(516, 218)
 
-[node name="SpawnBoss" type="Marker2D" parent="World/SpawnPoints" unique_id=997390866]
+[node name="SpawnBoss" type="Marker2D" parent="World/SpawnPoints"]
 position = Vector2(-76, -182)
 
-[node name="UI" type="CanvasLayer" parent="." unique_id=2057992483]
+[node name="UI" type="CanvasLayer" parent="."]
 
-[node name="HUD" type="Control" parent="UI" unique_id=886244510]
+[node name="HUD" type="Control" parent="UI"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -185,7 +185,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="WeaponUI" type="Control" parent="UI/HUD" unique_id=357906135]
+[node name="WeaponUI" type="Control" parent="UI/HUD"]
 custom_minimum_size = Vector2(260, 70)
 layout_mode = 1
 anchors_preset = 1
@@ -197,60 +197,91 @@ offset_bottom = 40.0
 grow_horizontal = 0
 script = ExtResource("5_weaponui")
 
-[node name="Panel" type="PanelContainer" parent="UI/HUD/WeaponUI" unique_id=1556215378]
+[node name="Panel" type="PanelContainer" parent="UI/HUD/WeaponUI"]
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
 
-[node name="HBox" type="HBoxContainer" parent="UI/HUD/WeaponUI/Panel" unique_id=929453943]
+[node name="HBox" type="HBoxContainer" parent="UI/HUD/WeaponUI/Panel"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Slot1" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox" unique_id=1488529402]
+[node name="Slot1" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox"]
 layout_mode = 2
 
-[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot1" unique_id=1534220624]
+[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot1"]
 custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 stretch_mode = 5
 
-[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot1" unique_id=95660571]
+[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot1"]
 layout_mode = 2
 
-[node name="Slot2" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox" unique_id=247257944]
+[node name="Slot2" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox"]
 layout_mode = 2
 
-[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot2" unique_id=1111664635]
+[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot2"]
 custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 stretch_mode = 5
 
-[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot2" unique_id=1244247432]
+[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot2"]
 layout_mode = 2
 
-[node name="Slot3" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox" unique_id=829333265]
+[node name="Slot3" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox"]
 layout_mode = 2
 
-[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot3" unique_id=1292081036]
+[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot3"]
 custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 stretch_mode = 5
 
-[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot3" unique_id=1097353151]
+[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot3"]
 layout_mode = 2
 
-[node name="Slot4" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox" unique_id=1854878082]
+[node name="Slot4" type="VBoxContainer" parent="UI/HUD/WeaponUI/Panel/HBox"]
 layout_mode = 2
 
-[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot4" unique_id=659652397]
+[node name="Icon" type="TextureRect" parent="UI/HUD/WeaponUI/Panel/HBox/Slot4"]
 custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 stretch_mode = 5
 
-[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot4" unique_id=118567335]
+[node name="Key" type="Label" parent="UI/HUD/WeaponUI/Panel/HBox/Slot4"]
 layout_mode = 2
 
-[node name="HpBar" type="ProgressBar" parent="UI" unique_id=1729384790]
+[node name="Effect Panel" type="Panel" parent="UI/HUD"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD/Effect Panel"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="SFXBox" type="CheckBox" parent="UI/HUD/Effect Panel/VBoxContainer"]
+layout_mode = 2
+text = "SFX"
+
+[node name="ShakeBox" type="CheckBox" parent="UI/HUD/Effect Panel/VBoxContainer"]
+layout_mode = 2
+text = "Screen Shake"
+
+[node name="FlashBox" type="CheckBox" parent="UI/HUD/Effect Panel/VBoxContainer"]
+layout_mode = 2
+text = "Hit Flash"
+
+[node name="VignetteBox" type="CheckBox" parent="UI/HUD/Effect Panel/VBoxContainer"]
+layout_mode = 2
+text = "Vignette
+"
+
+[node name="DamageBox" type="CheckBox" parent="UI/HUD/Effect Panel/VBoxContainer"]
+layout_mode = 2
+text = "Damage #"
+
+[node name="HpBar" type="ProgressBar" parent="UI"]
 offset_right = 300.0
 offset_bottom = 27.0
 value = 100.0
