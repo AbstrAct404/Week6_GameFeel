@@ -1,7 +1,7 @@
 extends CharacterBody2D
 
 @export var max_hp: int = 1200
-@export var contact_damage: int = 25  # damage per 20 frames while player in range
+@export var contact_damage: int = 15  # damage per 20 frames while player in range
 
 @onready var hitbox: Area2D = $Hitbox
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
@@ -16,14 +16,16 @@ var _hitstop_t: float = 0.0
 var _saved_speed_scale: float = 1.0
 var _contact_dmg_frames: int = 0  # deal contact_damage per 20 frames while overlapping
 
-# Teleport: when a single hit >= 10% max_hp, teleport ahead of player in their movement direction
-const TELEPORT_HP_FRACTION: float = 0.10
-const TELEPORT_DISTANCE: float = 140.0
+# Teleport: when HP drops below 80%, 60%, 40%, 20%, 10%, 5% of max_hp (each triggers once), ~250 units ahead of player
+const TELEPORT_HP_THRESHOLDS: Array[float] = [0.80, 0.60, 0.40, 0.20, 0.10, 0.05]
+var _next_teleport_threshold_idx: int = 0
+const TELEPORT_DISTANCE: float = 250.0
 
 signal died
 
 func _ready() -> void:
 	hp = max_hp
+	_next_teleport_threshold_idx = 0
 	_player = get_tree().get_first_node_in_group("player") as Node2D
 	if hitbox:
 		hitbox.collision_mask = 1  # layer 1 = player
@@ -115,9 +117,10 @@ func take_damage(amount: int = 1, is_crit: bool = false, weapon_type: int = -1) 
 	_start_hitstop(is_crit, weapon_type)
 	_hit_flash()
 
-	# Teleport when single hit >= 10% max_hp: appear ahead of player in their movement direction
-	if actual >= max_hp * TELEPORT_HP_FRACTION:
+	# Teleport when HP crosses below 80%, 60%, 40%, 20%, 10%, 5% of max_hp (each once)
+	while _next_teleport_threshold_idx < TELEPORT_HP_THRESHOLDS.size() and hp <= max_hp * TELEPORT_HP_THRESHOLDS[_next_teleport_threshold_idx]:
 		_teleport_ahead_of_player()
+		_next_teleport_threshold_idx += 1
 
 	# Damage popup: all hits when effect 0 on; white = non-crit, red = crit
 	var main := get_tree().current_scene
@@ -133,14 +136,17 @@ func _teleport_ahead_of_player() -> void:
 	if _player == null:
 		return
 	var dir: Vector2
+	# Use player's movement direction; fallback to direction from boss to player if standing still
 	if "velocity" in _player:
 		var pv: Vector2 = _player.get("velocity")
-		if pv.length_squared() > 100.0:
+		if pv.length_squared() > 25.0:
 			dir = pv.normalized()
 		else:
 			dir = (_player.global_position - global_position).normalized()
 	else:
 		dir = (_player.global_position - global_position).normalized()
+	if dir.length_squared() < 0.01:
+		dir = Vector2.RIGHT
 	global_position = _player.global_position + dir * TELEPORT_DISTANCE
 
 func _start_hitstop(is_crit: bool, weapon_type: int) -> void:

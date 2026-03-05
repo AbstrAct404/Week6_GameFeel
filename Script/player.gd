@@ -16,18 +16,18 @@ var hp: int
 @export var bullet_spawn_offset: float = 12.0
 
 # Per-weapon cooldowns (seconds)
-@export var pistol_cooldown: float = 0.5
-@export var rifle_cooldown: float = 0.34
-@export var shotgun_cooldown: float = 0.48
+@export var pistol_cooldown: float = 0.6
+@export var rifle_cooldown: float = 0.25
+@export var shotgun_cooldown: float = 0.42
 @export var sniper_cooldown: float = 1.10
 
 # NEW: cooldown multipliers (extend shotgun/sniper)
-@export var shotgun_cooldown_mult: float = 1.35
+@export var shotgun_cooldown_mult: float = 1.25
 @export var sniper_cooldown_mult: float = 1.45
 
 # Shotgun spread
 @export var shotgun_pellets: int = 5
-@export var shotgun_spread_degrees: float = 18.0
+@export var shotgun_spread_degrees: float = 16.0
 
 # ---------------- Game Feel: Camera Shake ----------------
 @export var shake_rifle_strength: float = 3.0
@@ -455,7 +455,7 @@ func _spawn_bullet(spawn_pos: Vector2, dir: Vector2) -> void:
 
 	var crit := false
 	if _weapon == WeaponType.SNIPER:
-		crit = true # sniper always shows popup
+		crit = _rng.randf() < 0.80  # sniper 80% crit rate
 	else:
 		crit = _rng.randf() < crit_chance_default
 
