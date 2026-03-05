@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://dedmujgpg2sk0" path="res://Script/main.gd" id="1_h175a"]
 [ext_resource type="PackedScene" uid="uid://dknvac6vetwvf" path="res://Scene/tm_floor.tscn" id="2_h175a"]
 [ext_resource type="Texture2D" uid="uid://b8wqqkbxjfl71" path="res://Assets/Dungeon_Tileset.png" id="4_h175a"]
+[ext_resource type="Script" path="res://Script/weapon_ui.gd" id="5_weaponui"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_h175a"]
 texture = ExtResource("4_h175a")
@@ -194,7 +195,7 @@ offset_left = 1072.0
 offset_right = 1112.0
 offset_bottom = 40.0
 grow_horizontal = 0
-script = ExtResource("4_togfq")
+script = ExtResource("5_weaponui")
 
 [node name="Panel" type="PanelContainer" parent="UI/HUD/WeaponUI" unique_id=1556215378]
 layout_mode = 0
